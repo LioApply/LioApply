@@ -121,6 +121,40 @@ export function parseSystemOneJsonOutput<
   return { answers };
 }
 
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isDailyQuotaExhausted(errBody: string): boolean {
+  return /free-models-per-day|daily\s+limit|tokens\s+per\s+day/i.test(errBody);
+}
+
+function extractRateLimitDelayMs(
+  response: Response,
+  errBody: string,
+  rateLimitAttempt: number,
+): number {
+  const retryAfter = response.headers.get('retry-after');
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds) && seconds > 0) {
+      return Math.min(30000, Math.ceil(seconds * 1000) + 350);
+    }
+  }
+
+  const secMatch = errBody.match(/try again in\s+([0-9]+(?:\.[0-9]+)?)s/i);
+  if (secMatch) {
+    return Math.min(30000, Math.ceil(Number(secMatch[1]) * 1000) + 350);
+  }
+
+  const msMatch = errBody.match(/try again in\s+([0-9]+(?:\.[0-9]+)?)ms/i);
+  if (msMatch) {
+    return Math.min(30000, Math.ceil(Number(msMatch[1])) + 350);
+  }
+
+  return Math.min(30000, 2000 * rateLimitAttempt);
+}
+
 /**
  * OpenAI-Compatible System-One Classifier Client (supports OpenRouter, Groq, Ollama, vLLM, etc.).
  * Enforces `temperature: 0`, JSON mode, and tight `max_tokens` budget so the LLM acts strictly as a classifier.
@@ -146,9 +180,11 @@ export class OpenAiCompatibleClassifierClient implements SystemOneClient {
     const isOpenRouter = this.options.baseUrl.includes('openrouter.ai');
 
     const maxAttempts = isOpenRouter ? 2 : 1;
+    const maxRateLimitRetries = 3;
+    let rateLimitRetries = 0;
     let lastError = '';
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    for (let attempt = 1; attempt <= maxAttempts; ) {
       const maxTokens = attempt === 1 ? tightMaxTokens : retryMaxTokens;
       const bodyPayload: Record<string, unknown> = {
         model: this.options.model,
@@ -179,7 +215,26 @@ export class OpenAiCompatibleClassifierClient implements SystemOneClient {
       if (!response.ok) {
         const errBody = await response.text().catch(() => '');
         lastError = `[${this.options.providerName}] HTTP ${response.status}: ${errBody.substring(0, 250)}`;
-        if (attempt < maxAttempts) continue;
+
+        if (
+          response.status === 429 &&
+          !isDailyQuotaExhausted(errBody) &&
+          rateLimitRetries < maxRateLimitRetries
+        ) {
+          rateLimitRetries++;
+          const waitMs = extractRateLimitDelayMs(
+            response,
+            errBody,
+            rateLimitRetries,
+          );
+          await sleepMs(waitMs);
+          continue;
+        }
+
+        if (attempt < maxAttempts) {
+          attempt++;
+          continue;
+        }
         throw new Error(lastError);
       }
 
@@ -200,7 +255,10 @@ export class OpenAiCompatibleClassifierClient implements SystemOneClient {
 
       if (!content) {
         lastError = `[${this.options.providerName}] Resposta vazia do modelo ${data?.model || this.options.model} (finish_reason: ${data?.choices?.[0]?.finish_reason || 'unknown'}).`;
-        if (attempt < maxAttempts) continue;
+        if (attempt < maxAttempts) {
+          attempt++;
+          continue;
+        }
         throw new Error(lastError);
       }
 
@@ -209,7 +267,10 @@ export class OpenAiCompatibleClassifierClient implements SystemOneClient {
       } catch (parseErr) {
         lastError =
           parseErr instanceof Error ? parseErr.message : String(parseErr);
-        if (attempt < maxAttempts) continue;
+        if (attempt < maxAttempts) {
+          attempt++;
+          continue;
+        }
         throw parseErr;
       }
     }
