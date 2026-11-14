@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
   BaseCvData,
+  CvLlmProviderType,
   CvTailoredPatchDto,
 } from '../../interfaces/cv/cv.interface';
 import {
@@ -9,11 +10,26 @@ import {
 } from './prompts/cv-ats.prompt';
 import { JobConfigService } from '../../config/job-config.service';
 
+interface ResolvedCvLlmProvider {
+  provider: Exclude<CvLlmProviderType, 'auto'>;
+  providerLabel: string;
+  apiKey: string;
+  model: string;
+  baseUrl: string;
+  extraHeaders?: Record<string, string>;
+}
+
+const SYSTEM_ONE_ONLY_PROVIDERS = new Set([
+  'jev',
+  'kev',
+  'laya',
+  'systemone',
+  'none',
+]);
+
 @Injectable()
 export class CvLlmService {
   private readonly logger = new Logger(CvLlmService.name);
-  private readonly openRouterEndpoint =
-    'https://openrouter.ai/api/v1/chat/completions';
 
   constructor(private readonly jobConfigService: JobConfigService) {}
 
@@ -21,55 +37,161 @@ export class CvLlmService {
     baseCv: BaseCvData,
     jobInfo: { title: string; company?: string; description: string },
   ): Promise<CvTailoredPatchDto> {
-    const apiKey =
-      process.env.OPEN_ROUTER_API_KEY || process.env.OPENROUTER_API_KEY;
-
-    if (!apiKey) {
-      throw new Error(
-        'Chave OPEN_ROUTER_API_KEY (ou OPENROUTER_API_KEY) não configurada no ambiente (.env).',
-      );
-    }
-
-    const { openRouterModel } =
-      this.jobConfigService.getCvOptimizationConfig();
+    const resolved = this.resolveLlmProvider();
     const messages = buildAtsCvOptimizationPrompt(baseCv, jobInfo);
 
     this.logger.log(
-      `🤖 Solicitando adaptação ATS ao OpenRouter (modelo: ${openRouterModel}) para a vaga "${jobInfo.title}"...`,
+      `🤖 Solicitando adaptação ATS via ${resolved.providerLabel} (modelo: ${resolved.model}) para a vaga "${jobInfo.title}"...`,
     );
 
-    const rawText = await this.callOpenRouter(
-      apiKey,
-      openRouterModel,
-      messages,
-    );
+    const rawText =
+      resolved.provider === 'gemini'
+        ? await this.callGemini(resolved, messages)
+        : await this.callOpenAiCompatible(resolved, messages);
+
     return this.parseTailoredPatchJson(rawText, baseCv);
   }
 
-  private async callOpenRouter(
-    apiKey: string,
-    model: string,
+  /**
+   * Resolves the active generative LLM provider for CV optimization (`groq`, `gemini`, `openrouter`, `ollama`, `openai-compatible`).
+   */
+  resolveLlmProvider(): ResolvedCvLlmProvider {
+    const cvConfig = this.jobConfigService.getCvOptimizationConfig();
+    const requested = (cvConfig.provider || 'auto').trim().toLowerCase();
+
+    if (SYSTEM_ONE_ONLY_PROVIDERS.has(requested)) {
+      throw new Error(
+        `Provider "${requested}" é apenas um classificador System-One e não suporta geração de currículo. Use groq, gemini, openrouter, ollama ou openai-compatible.`,
+      );
+    }
+
+    const explicitApiKey = process.env.CV_API_KEY || '';
+    const customModel = cvConfig.model || '';
+    const customBaseUrl = cvConfig.baseUrl || '';
+
+    const provider = this.resolveAutoProvider(requested as CvLlmProviderType);
+
+    switch (provider) {
+      case 'groq': {
+        const apiKey = explicitApiKey || process.env.GROQ_API_KEY || '';
+        if (!apiKey) {
+          throw new Error(
+            'CV_PROVIDER=groq selecionado, mas GROQ_API_KEY / CV_API_KEY não configurada.',
+          );
+        }
+        return {
+          provider: 'groq',
+          providerLabel: 'Groq',
+          apiKey,
+          model: customModel || 'llama-3.3-70b-versatile',
+          baseUrl:
+            customBaseUrl || 'https://api.groq.com/openai/v1/chat/completions',
+        };
+      }
+
+      case 'gemini': {
+        const apiKey = explicitApiKey || process.env.GEMINI_API_KEY || '';
+        if (!apiKey) {
+          throw new Error(
+            'CV_PROVIDER=gemini selecionado, mas GEMINI_API_KEY / CV_API_KEY não configurada.',
+          );
+        }
+        return {
+          provider: 'gemini',
+          providerLabel: 'Gemini',
+          apiKey,
+          model: customModel || 'gemini-2.5-flash-lite',
+          baseUrl:
+            customBaseUrl ||
+            'https://generativelanguage.googleapis.com/v1beta',
+        };
+      }
+
+      case 'ollama':
+      case 'openai-compatible': {
+        return {
+          provider,
+          providerLabel:
+            provider === 'ollama' ? 'Ollama' : 'OpenAI-Compatible',
+          apiKey: explicitApiKey || 'ollama',
+          model: customModel || 'qwen2.5:3b',
+          baseUrl:
+            customBaseUrl || 'http://localhost:11434/v1/chat/completions',
+        };
+      }
+
+      case 'openrouter':
+      default: {
+        const apiKey =
+          explicitApiKey ||
+          process.env.OPEN_ROUTER_API_KEY ||
+          process.env.OPENROUTER_API_KEY ||
+          '';
+        if (!apiKey) {
+          throw new Error(
+            'Chave de API para otimização de CV não configurada (defina GROQ_API_KEY, GEMINI_API_KEY, OPEN_ROUTER_API_KEY ou CV_API_KEY).',
+          );
+        }
+        return {
+          provider: 'openrouter',
+          providerLabel: 'OpenRouter',
+          apiKey,
+          model: customModel || cvConfig.openRouterModel || 'openrouter/free',
+          baseUrl:
+            customBaseUrl || 'https://openrouter.ai/api/v1/chat/completions',
+          extraHeaders: {
+            'HTTP-Referer': 'https://github.com/LioApply/LioApply',
+            'X-Title': 'LioApply CV Optimizer',
+          },
+        };
+      }
+    }
+  }
+
+  private resolveAutoProvider(
+    requested: CvLlmProviderType,
+  ): Exclude<CvLlmProviderType, 'auto'> {
+    if (requested && requested !== 'auto') {
+      return requested;
+    }
+
+    if (process.env.GROQ_API_KEY) return 'groq';
+    if (process.env.GEMINI_API_KEY) return 'gemini';
+    if (process.env.OPEN_ROUTER_API_KEY || process.env.OPENROUTER_API_KEY) {
+      return 'openrouter';
+    }
+    if (process.env.CV_BASE_URL) return 'openai-compatible';
+    return 'openrouter';
+  }
+
+  private async callOpenAiCompatible(
+    config: ResolvedCvLlmProvider,
     messages: LlmChatMessage[],
   ): Promise<string> {
-    const response = await fetch(this.openRouterEndpoint, {
+    const bodyPayload: Record<string, unknown> = {
+      model: config.model,
+      messages,
+      temperature: 0.3,
+    };
+
+    if (config.provider !== 'openrouter') {
+      bodyPayload.response_format = { type: 'json_object' };
+    }
+
+    const response = await fetch(config.baseUrl, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://github.com/jose15000/jobScraperBot',
-        'X-Title': 'JobSearchBot CV Optimizer',
+        ...(config.extraHeaders || {}),
       },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.3,
-      }),
+      body: JSON.stringify(bodyPayload),
     });
 
     if (!response.ok) {
       const errBody = await response.text();
       throw new Error(
-        `Erro na API do OpenRouter (${response.status}): ${errBody}`,
+        `Erro na API do ${config.providerLabel} (${response.status}): ${errBody}`,
       );
     }
 
@@ -79,10 +201,64 @@ export class CvLlmService {
 
     const content = data?.choices?.[0]?.message?.content;
     if (!content) {
-      throw new Error('OpenRouter retornou resposta vazia.');
+      throw new Error(`${config.providerLabel} retornou resposta vazia.`);
     }
 
     return typeof content === 'string' ? content : JSON.stringify(content);
+  }
+
+  private async callGemini(
+    config: ResolvedCvLlmProvider,
+    messages: LlmChatMessage[],
+  ): Promise<string> {
+    const base = config.baseUrl.replace(/\/$/, '');
+    const endpoint = `${base}/models/${encodeURIComponent(config.model)}:generateContent?key=${encodeURIComponent(config.apiKey)}`;
+
+    const systemText = messages
+      .filter((m) => m.role === 'system')
+      .map((m) => m.content)
+      .join('\n\n');
+    const contents = messages
+      .filter((m) => m.role !== 'system')
+      .map((m) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      }));
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...(systemText
+          ? { systemInstruction: { parts: [{ text: systemText }] } }
+          : {}),
+        contents,
+        generationConfig: {
+          temperature: 0.3,
+          responseMimeType: 'application/json',
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errBody = await response.text();
+      throw new Error(
+        `Erro na API do Gemini (${response.status}): ${errBody}`,
+      );
+    }
+
+    const data = (await response.json()) as {
+      candidates?: Array<{
+        content?: { parts?: Array<{ text?: string }> };
+      }>;
+    };
+
+    const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!content) {
+      throw new Error('Gemini retornou resposta vazia.');
+    }
+
+    return content;
   }
 
   /**

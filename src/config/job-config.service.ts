@@ -242,11 +242,25 @@ export class JobConfigService implements OnModuleInit {
   }
 
   getCvOptimizationConfig(): CvOptimizationConfig {
+    const openRouterModel =
+      process.env.OPENROUTER_MODEL ||
+      this.config.cvOptimization?.openRouterModel ||
+      'openrouter/free';
+
     return {
-      openRouterModel:
+      provider:
+        (process.env.CV_PROVIDER as CvOptimizationConfig['provider']) ||
+        this.config.cvOptimization?.provider ||
+        'auto',
+      model:
+        process.env.CV_MODEL ||
+        this.config.cvOptimization?.model ||
         process.env.OPENROUTER_MODEL ||
-        this.config.cvOptimization?.openRouterModel ||
-        'openrouter/free',
+        this.config.cvOptimization?.openRouterModel,
+      baseUrl:
+        process.env.CV_BASE_URL ||
+        this.config.cvOptimization?.baseUrl,
+      openRouterModel,
       baseCvPath:
         process.env.CV_BASE_PATH ||
         this.config.cvOptimization?.baseCvPath ||

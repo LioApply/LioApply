@@ -216,4 +216,69 @@ describe('CV Optimization Pipeline Services', () => {
       );
     });
   });
+
+  describe('CvLlmService Provider Resolution', () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+      delete process.env.CV_PROVIDER;
+      delete process.env.CV_MODEL;
+      delete process.env.CV_API_KEY;
+      delete process.env.CV_BASE_URL;
+      delete process.env.GROQ_API_KEY;
+      delete process.env.GEMINI_API_KEY;
+      delete process.env.OPEN_ROUTER_API_KEY;
+      delete process.env.OPENROUTER_API_KEY;
+      delete process.env.OPENROUTER_MODEL;
+    });
+
+    afterAll(() => {
+      process.env = originalEnv;
+    });
+
+    it('resolves groq, gemini, ollama, and openrouter providers and rejects jev/kev/laya', () => {
+      const makeService = (provider?: any) =>
+        new CvLlmService({
+          getCvOptimizationConfig: jest.fn().mockReturnValue({
+            provider: provider ?? 'auto',
+            openRouterModel: 'openrouter/free',
+            baseCvPath: './cv.base.yaml',
+          }),
+        } as unknown as JobConfigService);
+
+      process.env.GROQ_API_KEY = 'gsk-test';
+      expect(makeService('groq').resolveLlmProvider()).toMatchObject({
+        provider: 'groq',
+        model: 'llama-3.3-70b-versatile',
+      });
+
+      process.env.GEMINI_API_KEY = 'gem-test';
+      expect(makeService('gemini').resolveLlmProvider()).toMatchObject({
+        provider: 'gemini',
+        model: 'gemini-2.5-flash-lite',
+      });
+
+      expect(makeService('ollama').resolveLlmProvider()).toMatchObject({
+        provider: 'ollama',
+        model: 'qwen2.5:3b',
+      });
+
+      process.env.OPEN_ROUTER_API_KEY = 'or-test';
+      expect(makeService('openrouter').resolveLlmProvider()).toMatchObject({
+        provider: 'openrouter',
+        model: 'openrouter/free',
+      });
+
+      expect(() => makeService('jev').resolveLlmProvider()).toThrow(
+        /System-One/,
+      );
+      expect(() => makeService('kev').resolveLlmProvider()).toThrow(
+        /System-One/,
+      );
+      expect(() => makeService('laya').resolveLlmProvider()).toThrow(
+        /System-One/,
+      );
+    });
+  });
 });

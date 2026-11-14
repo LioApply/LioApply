@@ -12,6 +12,7 @@ import {
 } from '../../services/cv/cv-optimization.service';
 import {
   BaseCvData,
+  CvLlmProviderType,
   CvOptimizationConfig,
   CvTailoredPatchDto,
   TailoredCvEvaluation,
@@ -22,14 +23,18 @@ export interface CvEngineOptions {
   baseCv?: string | BaseCvData;
   /** Alias for `baseCv` path. */
   baseCvPath?: string;
-  /** LLM API key (e.g. OpenRouter). */
+  /** Generative LLM provider (`auto`, `groq`, `gemini`, `openrouter`, `ollama`, `openai-compatible`). */
+  provider?: CvLlmProviderType;
+  /** LLM API key (`CV_API_KEY` or provider-specific key). */
   apiKey?: string;
-  /** Alias for `apiKey`. */
+  /** Alias for `apiKey` when using OpenRouter. */
   openRouterApiKey?: string;
-  /** Model identifier (default: `openrouter/free`). */
+  /** Model identifier (e.g. `llama-3.3-70b-versatile`, `gemini-2.5-flash-lite`, `openrouter/free`). */
   model?: string;
   /** Alias for `model`. */
   openRouterModel?: string;
+  /** Custom endpoint URL (for `ollama` or `openai-compatible`). */
+  baseUrl?: string;
   /** Default directory when saving PDFs to disk. */
   outputDir?: string;
 }
@@ -52,11 +57,20 @@ export function typstCvEngine(options?: CvEngineOptions) {
   const baseCvPath =
     typeof options?.baseCv === 'string' ? options.baseCv : options?.baseCvPath;
 
+  if (options?.provider && options.provider !== 'auto') {
+    process.env.CV_PROVIDER = options.provider;
+  }
   if (apiKey) {
-    process.env.OPEN_ROUTER_API_KEY = apiKey;
+    process.env.CV_API_KEY = apiKey;
+    if (options?.openRouterApiKey) {
+      process.env.OPEN_ROUTER_API_KEY = options.openRouterApiKey;
+    }
   }
   if (model) {
-    process.env.OPENROUTER_MODEL = model;
+    process.env.CV_MODEL = model;
+  }
+  if (options?.baseUrl) {
+    process.env.CV_BASE_URL = options.baseUrl;
   }
   if (baseCvPath) {
     process.env.CV_BASE_PATH = baseCvPath;
@@ -188,6 +202,7 @@ export {
 export type {
   CvOptimizationResult,
   BaseCvData,
+  CvLlmProviderType,
   CvOptimizationConfig,
   CvTailoredPatchDto,
   TailoredCvEvaluation,

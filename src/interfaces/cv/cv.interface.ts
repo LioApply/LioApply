@@ -89,7 +89,18 @@ export interface TailoredCvEvaluation {
   summaryReason: string;
 }
 
+export type CvLlmProviderType =
+  | 'auto'
+  | 'groq'
+  | 'gemini'
+  | 'openrouter'
+  | 'ollama'
+  | 'openai-compatible';
+
 export interface CvOptimizationConfig {
+  provider?: CvLlmProviderType;
+  model?: string;
+  baseUrl?: string;
   openRouterModel: string;
   baseCvPath: string;
 }
