@@ -2,7 +2,7 @@ import { DynamicModule, Module } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { JobConfigService } from '../../config/job-config.service';
-import { JevService } from '../../services/jev/jev.service';
+import { createClassifierService } from '../../services/classifier/classifier.service';
 import { CvLlmService } from '../../services/cv/cv-llm.service';
 import { TypstTemplateService } from '../../services/cv/typst-template.service';
 import { TypstCompilerService } from '../../services/cv/typst-compiler.service';
@@ -83,8 +83,7 @@ export function typstCvEngine(options?: CvEngineOptions) {
     // Config YAML is optional when using CvEngine standalone
   }
 
-  const jevService = new JevService(configService);
-  jevService.initializeProvider();
+  const classifierService = createClassifierService(configService);
 
   const llmService = new CvLlmService(configService);
   const templateService = new TypstTemplateService();
@@ -108,7 +107,7 @@ export function typstCvEngine(options?: CvEngineOptions) {
         description: jobInfo.description,
       });
 
-      const evaluation = await jevService.evaluateTailoredCv(
+      const evaluation = await classifierService.evaluateTailoredCv(
         baseCv,
         patch,
         jobInfo,
@@ -178,16 +177,8 @@ export class LioApplyCvModule {
   static register(): DynamicModule {
     return {
       module: LioApplyCvModule,
-      providers: [
-        CvLlmService,
-        TypstTemplateService,
-        TypstCompilerService,
-      ],
-      exports: [
-        CvLlmService,
-        TypstTemplateService,
-        TypstCompilerService,
-      ],
+      providers: [CvLlmService, TypstTemplateService, TypstCompilerService],
+      exports: [CvLlmService, TypstTemplateService, TypstCompilerService],
     };
   }
 }

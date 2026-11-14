@@ -1,7 +1,7 @@
 import { ILocationOption } from '../isearch/isearch.interface';
 import { UserProfileCriteria } from '../../utils/jev';
 import { CvOptimizationConfig } from '../cv/cv.interface';
-import { ClassifierProviderConfig } from '../../services/jev/classifier-providers';
+import { ClassifierProviderConfig } from '../../services/classifier/classifier-clients';
 
 export interface AppJobConfig {
   search: {

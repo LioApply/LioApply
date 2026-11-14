@@ -4,16 +4,8 @@ import {
   glassdoor,
   glassdoorProvider,
 } from './glassdoor';
-import {
-  createLinkedinProvider,
-  linkedin,
-  linkedinProvider,
-} from './linkedin';
-import {
-  createRemotarProvider,
-  remotar,
-  remotarProvider,
-} from './remotar';
+import { createLinkedinProvider, linkedin, linkedinProvider } from './linkedin';
+import { createRemotarProvider, remotar, remotarProvider } from './remotar';
 import { PlaywrightService } from '../../services/playWrightService/scrapservice.service';
 import { LinkedinApifyService } from '../../services/Linkedin/linkedin-apify.service';
 

@@ -19,13 +19,7 @@ interface ResolvedCvLlmProvider {
   extraHeaders?: Record<string, string>;
 }
 
-const SYSTEM_ONE_ONLY_PROVIDERS = new Set([
-  'jev',
-  'kev',
-  'laya',
-  'systemone',
-  'none',
-]);
+const SYSTEM_ONE_ONLY_PROVIDERS = new Set(['jev', 'systemone', 'none']);
 
 @Injectable()
 export class CvLlmService {
@@ -102,8 +96,7 @@ export class CvLlmService {
           apiKey,
           model: customModel || 'gemini-2.5-flash-lite',
           baseUrl:
-            customBaseUrl ||
-            'https://generativelanguage.googleapis.com/v1beta',
+            customBaseUrl || 'https://generativelanguage.googleapis.com/v1beta',
         };
       }
 
@@ -111,8 +104,7 @@ export class CvLlmService {
       case 'openai-compatible': {
         return {
           provider,
-          providerLabel:
-            provider === 'ollama' ? 'Ollama' : 'OpenAI-Compatible',
+          providerLabel: provider === 'ollama' ? 'Ollama' : 'OpenAI-Compatible',
           apiKey: explicitApiKey || 'ollama',
           model: customModel || 'qwen2.5:3b',
           baseUrl:
@@ -242,9 +234,7 @@ export class CvLlmService {
 
     if (!response.ok) {
       const errBody = await response.text();
-      throw new Error(
-        `Erro na API do Gemini (${response.status}): ${errBody}`,
-      );
+      throw new Error(`Erro na API do Gemini (${response.status}): ${errBody}`);
     }
 
     const data = (await response.json()) as {
@@ -268,7 +258,9 @@ export class CvLlmService {
     rawText: string,
     fallbackBase: BaseCvData,
   ): CvTailoredPatchDto {
-    const withoutThink = rawText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    const withoutThink = rawText
+      .replace(/<think>[\s\S]*?<\/think>/gi, '')
+      .trim();
     const firstBrace = withoutThink.indexOf('{');
     const lastBrace = withoutThink.lastIndexOf('}');
 

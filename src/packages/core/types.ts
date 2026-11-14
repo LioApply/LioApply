@@ -2,7 +2,7 @@ import {
   ILocationOption,
   IProviderConfig,
 } from '../../interfaces/isearch/isearch.interface';
-import { ClassifierProviderConfig } from '../../services/jev/classifier-providers';
+import { ClassifierProviderConfig } from '../../services/classifier/classifier-clients';
 import { ApprovedJobDto } from '../../services/task-service/job-digest.formatter';
 import { NormalizedCandidateJob } from '../../utils/deduplication';
 import { UserProfileCriteria } from '../../utils/jev';

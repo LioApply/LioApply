@@ -50,7 +50,9 @@ export class JobHistoryRepository implements OnModuleInit, OnModuleDestroy {
         CREATE INDEX IF NOT EXISTS idx_sent_jobs_company ON sent_jobs (company);
         CREATE INDEX IF NOT EXISTS idx_sent_jobs_sent_at ON sent_jobs (sent_at);
       `);
-      this.logger.log('✅ Drizzle ORM conectado e tabela sent_jobs verificada.');
+      this.logger.log(
+        '✅ Drizzle ORM conectado e tabela sent_jobs verificada.',
+      );
     } catch (error) {
       this.logger.error('Erro ao conectar ou criar tabela sent_jobs:', error);
       throw error;
@@ -218,7 +220,12 @@ export class JobHistoryRepository implements OnModuleInit, OnModuleDestroy {
   }
 
   async save(
-    jobs: { url: string; title: string; company?: string; description?: string }[],
+    jobs: {
+      url: string;
+      title: string;
+      company?: string;
+      description?: string;
+    }[],
   ): Promise<StoredJobRecord[]> {
     if (jobs.length === 0) return [];
 
@@ -250,7 +257,9 @@ export class JobHistoryRepository implements OnModuleInit, OnModuleDestroy {
           sent_at: sentJobs.sent_at,
         });
 
-      this.logger.log(`💾 ${jobs.length} vagas persistidas no banco com Drizzle.`);
+      this.logger.log(
+        `💾 ${jobs.length} vagas persistidas no banco com Drizzle.`,
+      );
       return inserted.map((row) => ({
         id: row.id,
         url: row.url,

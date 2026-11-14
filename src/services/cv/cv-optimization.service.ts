@@ -2,7 +2,7 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as cheerio from 'cheerio';
 import { JobConfigService } from '../../config/job-config.service';
 import { JobHistoryRepository } from '../../repositories/job-history.repository';
-import { JevService } from '../jev/jev.service';
+import { ClassifierService } from '../classifier/classifier.service';
 import { BotService } from '../bot/bot.service';
 import { CvLlmService } from './cv-llm.service';
 import { TypstTemplateService } from './typst-template.service';
@@ -27,7 +27,7 @@ export class CvOptimizationService {
     private readonly jobConfigService: JobConfigService,
     @Optional() private readonly historyRepository: JobHistoryRepository,
     private readonly cvLlmService: CvLlmService,
-    private readonly jevService: JevService,
+    private readonly classifierService: ClassifierService,
     private readonly typstTemplateService: TypstTemplateService,
     private readonly typstCompilerService: TypstCompilerService,
     @Optional() private readonly botService: BotService,
@@ -127,7 +127,7 @@ export class CvOptimizationService {
       description: jobInfo.description,
     });
 
-    const evaluation = await this.jevService.evaluateTailoredCv(
+    const evaluation = await this.classifierService.evaluateTailoredCv(
       baseCv,
       patch,
       jobInfo,

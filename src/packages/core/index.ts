@@ -18,7 +18,22 @@ export {
   normalizeScrapedPost,
   type NormalizedCandidateJob,
 } from '../../utils/deduplication';
-export { JevService, type JobEvaluationResult } from '../../services/jev/jev.service';
+export {
+  ClassifierService,
+  createClassifierService,
+  type JobEvaluationResult,
+} from '../../services/classifier/classifier.service';
+export {
+  GeminiService,
+  GroqService,
+  JevService,
+  OllamaService,
+  OpenRouterService,
+} from '../../services/classifier/providers';
+export type {
+  ClassifierProvider,
+  ClassifierResolution,
+} from '../../interfaces/classifier/classifier.interface';
 export {
   JobDigestFormatter,
   type ApprovedJobDto,
@@ -28,7 +43,7 @@ export {
   parseSystemOneJsonOutput,
   type ClassifierProviderConfig,
   type ClassifierProviderType,
-} from '../../services/jev/classifier-providers';
+} from '../../services/classifier/classifier-clients';
 export {
   noul,
   JOB_FIT_QUESTIONS,

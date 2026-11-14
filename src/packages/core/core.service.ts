@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { JobConfigService } from '../../config/job-config.service';
 import { IProviderConfig } from '../../interfaces/isearch/isearch.interface';
-import { JevService } from '../../services/jev/jev.service';
+import { ClassifierService } from '../../services/classifier/classifier.service';
 import { JobDigestFormatter } from '../../services/task-service/job-digest.formatter';
 import { JobDeduplicationService } from '../../utils/deduplication';
 import { PlaywrightService, resolveProviders } from '../providers';
@@ -19,7 +19,7 @@ export class LioApplyCoreService {
   constructor(
     private readonly configService: JobConfigService,
     private readonly deduplicationService: JobDeduplicationService,
-    private readonly jevService: JevService,
+    private readonly classifierService: ClassifierService,
     private readonly digestFormatter: JobDigestFormatter,
     private readonly playwrightService: PlaywrightService,
     @Optional()
@@ -39,7 +39,7 @@ export class LioApplyCoreService {
       {
         configService: this.configService,
         deduplicationService: this.deduplicationService,
-        jevService: this.jevService,
+        classifierService: this.classifierService,
         digestFormatter: this.digestFormatter,
         playwrightService: this.playwrightService,
         defaultProviders,

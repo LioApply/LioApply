@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { JobConfigService } from '../../config/job-config.service';
 import { IProviderConfig } from '../../interfaces/isearch/isearch.interface';
-import { JevService } from '../../services/jev/jev.service';
+import { ClassifierService } from '../../services/classifier/classifier.service';
 import { JobDigestFormatter } from '../../services/task-service/job-digest.formatter';
 import {
   JobDeduplicationService,
@@ -19,7 +19,7 @@ import {
 export interface PipelineDeps {
   configService: JobConfigService;
   deduplicationService: JobDeduplicationService;
-  jevService: JevService;
+  classifierService: ClassifierService;
   digestFormatter: JobDigestFormatter;
   playwrightService: PlaywrightService;
   defaultProviders: IProviderConfig[];
@@ -103,7 +103,7 @@ export async function runClassifyCandidates(
 ): Promise<ApprovedCandidateJobDto[]> {
   if (candidates.length === 0) return [];
 
-  if (deps.jevService.getActiveProviderName() === 'none') {
+  if (deps.classifierService.getActiveProviderName() === 'none') {
     return candidates.map((candidate) => ({
       title: candidate.title,
       company: candidate.company,
@@ -124,10 +124,10 @@ export async function runClassifyCandidates(
     profileOverride || deps.profileOverride,
   );
   const evaluations =
-    typeof deps.jevService.evaluateJobsBatch === 'function'
-      ? await deps.jevService.evaluateJobsBatch(candidates, profile)
+    typeof deps.classifierService.evaluateJobsBatch === 'function'
+      ? await deps.classifierService.evaluateJobsBatch(candidates, profile)
       : await Promise.all(
-          candidates.map((c) => deps.jevService.evaluateJob(c, profile)),
+          candidates.map((c) => deps.classifierService.evaluateJob(c, profile)),
         );
 
   const approved: ApprovedCandidateJobDto[] = [];

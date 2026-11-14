@@ -10,7 +10,7 @@
 - **🧹 Deduplicação Inteligente (Título + Empresa):** Normaliza títulos e nomes de empresas para nunca enviar a mesma vaga duas vezes, mesmo quando republicada com links diferentes.
 - **🧠 Classificador Semântico System-One Multi-Provider (em Lote):**
   - Avalia vagas inéditas em lote usando julgamentos probabilísticos tipados (`noul`: `matches_profile` e `is_actual_job_offer`) com **compressão de rubricas** (~80% de economia de tokens).
-  - **Liberdade de Escolha (`CLASSIFIER_PROVIDER`):** Funciona 100% grátis com **OpenRouter** (`openrouter/free`), **Groq** (`llama-3.1-8b-instant`), **Google Gemini** (`gemini-2.5-flash-lite`), **Ollama** local, **Laya**, **Kev** ou **TypeSafe Jev**.
+  - **Liberdade de Escolha (`CLASSIFIER_PROVIDER`):** Funciona 100% grátis com **OpenRouter** (`openrouter/free`), **Groq** (`openai/gpt-oss-120b`), **Google Gemini** (`gemini-2.5-flash-lite`), **Ollama** local ou **TypeSafe Jev**.
 - **📄 Otimização de Currículo ATS Sob Demanda (`/cv` + Typst PDF):**
   - Cada vaga aprovada no resumo do WhatsApp recebe um código `[#ID]`.
   - Basta responder **`/cv 42`** (ou `/cv <link_ou_descrição_da_vaga>`) no WhatsApp para o LioApply reescrever seu currículo base (`cv.base.yaml`) focado nas palavras-chave daquela vaga, compilar um PDF impecável em milissegundos via **Typst** e enviar o documento pronto no seu WhatsApp!
@@ -25,7 +25,7 @@ flowchart TD
         A["Cron / CLI (--run-now)"] --> B["TaskService"]
         B --> C["Playwright & Apify Scrapers<br/>(LinkedIn, Glassdoor, Remotar)"]
         C --> D["Deduplicação Título + Empresa<br/>(JobDeduplicationService + PostgreSQL)"]
-        D --> E["System-One Batch Classifier<br/>(OpenRouter / Groq / Gemini / Ollama / Laya / Kev / Jev)"]
+        D --> E["System-One Batch Classifier<br/>(OpenRouter / Groq / Gemini / Ollama / Jev)"]
         E -->|"Aprovadas (score >= 50%)"| F["JobDigestFormatter<br/>(Gera Resumo com Tags [#ID])"]
         F --> G["Evolution API -> WhatsApp Digest"]
     end
@@ -58,8 +58,8 @@ flowchart TD
 │   ├── repositories/
 │   │   └── job-history.repository.ts # Persistência e consulta de vagas no PostgreSQL
 │   ├── services/
-│   │   ├── cv/                   # Motor de otimização ATS (OpenRouter + Typst PDF)
-│   │   ├── jev/                  # Classificador System-One Multi-Provider (Batch + Rubric Compression)
+│   │   ├── cv/                   # Motor de otimização ATS (Multi-provider LLM + Typst PDF)
+│   │   ├── classifier/           # ClassifierService + providers/ (Groq, Gemini, OpenRouter, Ollama, Jev)
 │   │   ├── task-service/         # Orquestrador do pipeline e formatador de Digest
 │   │   └── whatsapp-service/     # Integração com a Evolution API (texto e documentos PDF)
 │   ├── utils/
@@ -118,7 +118,7 @@ INSTANCE_NAME=lioapply
 WHATSAPP_NUMBER=5511999999999
 
 # Classificador Semântico System-One & Otimização de Currículo (100% Gratuito)
-# Opções de CLASSIFIER_PROVIDER: auto | openrouter | groq | gemini | ollama | laya | kev | jev
+# Opções de CLASSIFIER_PROVIDER: auto | openrouter | groq | gemini | ollama | jev
 CLASSIFIER_PROVIDER=auto
 OPEN_ROUTER_API_KEY=sk-or-v1-...
 # GROQ_API_KEY=gsk_...
@@ -174,7 +174,7 @@ const lio = createLioApply({
 
   // 2. Escolha o classificador (ou 'none' para classificar fora, ex: via MCP)
   classifier: {
-    provider: 'auto', // 'openrouter' | 'groq' | 'gemini' | 'ollama' | 'laya' | 'kev' | 'jev' | 'none'
+    provider: 'auto', // 'openrouter' | 'groq' | 'gemini' | 'ollama' | 'jev' | 'none'
     apiKey: process.env.OPEN_ROUTER_API_KEY,
   },
 
@@ -194,6 +194,27 @@ const { approvedJobs, digestText } = await lio.searchAndClassify();
 // 2. Gerar currículo em PDF via Typst sob demanda
 const { pdfBuffer, fileName, evaluation } = await lio.optimizeCv(approvedJobs[0]);
 ```
+
+### Injeção de Dependência no NestJS (`LioApplyCoreModule`)
+
+Todos os classificadores de IA são `@Injectable()` e podem ser injetados diretamente no seu módulo NestJS via `LioApplyCoreModule.register(...)`:
+
+- **`ClassifierService`**: lê `jobs.config.yaml` / `.env` e roteia para o provider escolhido.
+- **Um service por provider**: `GroqService`, `GeminiService`, `OpenRouterService`, `OllamaService`, `JevService` (cada um só declara URL/modelo/chaves padrão).
+
+---
+
+## 🌐 API HTTP do LioApply (`pnpm run listen`)
+
+Ao iniciar o listener (`node dist/main.js --listen`), a aplicação expõe os seguintes endpoints REST:
+
+| Método | Rota | Descrição |
+| :--- | :--- | :--- |
+| `GET` | `/` | Health check da aplicação. |
+| `POST` | `/instance/create` | Cria uma nova instância na Evolution API (`CreateInstanceDto`). |
+| `GET` | `/instance/connect/:instanceName` | Obtém o status/QR Code de conexão da instância no WhatsApp. |
+| `POST` | `/message/sendText/:instanceName` | Envia uma mensagem de texto via Evolution API (`SendMessageDTO`). |
+| `POST` | `/webhook/evolution` | Webhook da Evolution API para comandos `/cv <id>` ou `/cv <link_ou_texto>`, gerando o PDF via Typst e respondendo no WhatsApp. |
 
 ---
 

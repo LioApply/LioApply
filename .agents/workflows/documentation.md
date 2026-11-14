@@ -32,8 +32,8 @@ src/
   │     └── job-config.service.ts# Declarative YAML/ENV configuration loader (Config Layer)
   ├── services/
   │     ├── bot/                 # Orchestrator interface for browser scraping and messaging requests
-  │     ├── cv/                  # On-demand ATS CV optimization (OpenRouter + Jev + Typst PDF compiler)
-  │     ├── jev/                 # TypeSafe Jev AI semantic heuristic evaluation (System One)
+  │     ├── cv/                  # On-demand ATS CV optimization (Multi-provider LLM + Jev + Typst PDF compiler)
+  │     ├── classifier/          # ClassifierService (orchestrator) + providers/ (Groq, Gemini, OpenRouter, Ollama, Jev)
   │     ├── scrapservice/        # Low-level HTTP integrations with Apify (LinkedIn)
   │     ├── glassdoor/           # Low-level HTTP integrations with Apify (Glassdoor)
   │     ├── whatsapp-service/    # Low-level integrations with the Evolution API
@@ -53,7 +53,7 @@ src/
    - **`JobConfigService`**: Solely handles loading, parsing, and normalizing user search queries and semantic profiles from `jobs.config.yaml` or `.env`.
    - **`JobHistoryRepository`**: Solely handles persistent storage and querying of sent jobs using **Drizzle ORM**.
    - **`JobDeduplicationService`**: Solely handles title and company normalization and duplicate filtering.
-   - **`JevService` + `classifier-providers.ts`**: Handles semantic job fit and CV evaluation using the native **Multi-Provider System-One Classifier** (`openrouter`, `groq`, `gemini`, `ollama`, `laya`, `kev`, or `jev` HTTP) with rubric compression and batch evaluation (`evaluateJobsBatch`) to minimize input/output tokens and require zero proprietary SDK dependencies.
+   - **`ClassifierService` + `services/classifier/providers/*`**: `ClassifierService` reads `classifier` from `jobs.config.yaml` / `.env` and routes semantic job fit and CV evaluation to the chosen provider service (`GroqService`, `GeminiService`, `OpenRouterService`, `OllamaService`, `JevService`). Each provider only declares its defaults (URL, model, env keys) on top of `base.provider.ts`; HTTP clients live in `classifier-clients.ts`. Adding a provider = one new `*.service.ts` + registering it in `providers/index.ts`.
    - **`JobDigestFormatter`**: Solely formats and styles the WhatsApp alert messages (with `[#ID]` badges for on-demand CV generation).
    - **`CvOptimizationService` / `CvLlmService` / `TypstTemplateService` / `TypstCompilerService`**: Handles on-demand ATS resume tailoring from `cv.base.yaml` using OpenRouter, semantic verification with TypeSafe Jev, ultra-fast PDF compilation via Typst (`typst` CLI), and direct PDF delivery to WhatsApp via Evolution API (`sendMediaDocument`).
    - **`ScrapserviceService`**: Handles low-level LinkedIn scraper HTTP request logic.
@@ -128,3 +128,21 @@ Common commands and pipeline validation tasks:
 - **Railway Cron Deploy (Alternative):**
   Push to the connected branch — Railway will build the Docker image and schedule it via `railway.json` (`cronSchedule: "0 * * * *"`).
 - **Documentation Rule:** Any new integrations (e.g. Indeed) or database changes must be immediately recorded here to preserve context for future pair programmers.
+
+---
+
+## 5. LioApply API Reference
+
+### HTTP API (`pnpm run listen` / `AppController`)
+When running in listener mode (`node dist/main.js --listen`), NestJS exposes the following HTTP endpoints:
+- `GET /` — Health/greeting check (`AppService.getHello()`).
+- `POST /instance/create` — Creates a WhatsApp instance on Evolution API (`CreateInstanceDto`).
+- `GET /instance/connect/:instanceName` — Retrieves connection/QR status for an Evolution API instance.
+- `POST /message/sendText/:instanceName` — Sends a WhatsApp text message (`SendMessageDTO`).
+- `POST /webhook/evolution` — Evolution API webhook listener for on-demand `/cv <jobId>` or `/cv <url_or_description>` commands; generates the tailored Typst PDF and sends it back via WhatsApp.
+
+### Programmatic SDK & NestJS DI (`@lioapply/*`)
+- `@lioapply/core`: `createLioApply(options)` (`scrapeJobs`, `classifyJobs`, `searchAndClassify`, `buildSystemOneClassificationState`, `optimizeCv`) and `LioApplyCoreModule.register(options)` exporting `ClassifierService` and the 5 provider services.
+- `@lioapply/providers`: `linkedin()`, `glassdoor()`, `remotar()`.
+- `@lioapply/cv`: `typstCvEngine(options)` and `LioApplyCvModule.register()`.
+- `@lioapply/mcp`: `pnpm run mcp` starts the JSON-RPC 2.0 MCP server over stdio.

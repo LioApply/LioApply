@@ -1,11 +1,13 @@
-import { JevService } from './jev.service';
+import { JobConfigService } from '../../config/job-config.service';
+import { JOB_FIT_QUESTIONS, noul, UserProfileCriteria } from '../../utils/jev';
 import {
   buildCompactClassifierPayload,
+  OpenAiCompatibleClassifierClient,
   parseSystemOneJsonOutput,
-} from './classifier-providers';
-import { JOB_FIT_QUESTIONS, noul, UserProfileCriteria } from '../../utils/jev';
+} from './classifier-clients';
+import { createClassifierService } from './classifier.service';
 
-describe('System-One Multi-Provider Classifier (JevService)', () => {
+describe('ClassifierService (System-One multi-provider)', () => {
   const sampleProfile: UserProfileCriteria = {
     targetRoles: ['Desenvolvedor Full Stack Pleno'],
     targetTechnologies: ['TypeScript', 'React', 'Node.js', 'NestJS'],
@@ -15,6 +17,10 @@ describe('System-One Multi-Provider Classifier (JevService)', () => {
   };
 
   const originalEnv = process.env;
+  const makeService = (yaml: Record<string, unknown> = {}) =>
+    createClassifierService({
+      getClassifierConfig: () => yaml,
+    } as unknown as JobConfigService);
 
   beforeEach(() => {
     process.env = { ...originalEnv };
@@ -76,34 +82,39 @@ describe('System-One Multi-Provider Classifier (JevService)', () => {
   describe('Provider Selection & Auto-Detection', () => {
     it('auto-detects OpenRouter when OPEN_ROUTER_API_KEY is present', () => {
       process.env.OPEN_ROUTER_API_KEY = 'sk-or-test';
-      const service = new JevService();
-      service.onModuleInit();
+      const service = makeService();
       expect(service.getActiveProviderName()).toContain('openrouter');
     });
 
-    it('prioritizes explicit CLASSIFIER_PROVIDER selection (groq, gemini, ollama, kev, laya)', () => {
+    it('prioritizes explicit CLASSIFIER_PROVIDER selection (groq, gemini, ollama)', () => {
       process.env.CLASSIFIER_PROVIDER = 'groq';
       process.env.GROQ_API_KEY = 'gsk-test';
-      const groqService = new JevService();
-      groqService.onModuleInit();
+      const groqService = makeService();
       expect(groqService.getActiveProviderName()).toContain('groq');
 
       process.env.CLASSIFIER_PROVIDER = 'gemini';
       process.env.GEMINI_API_KEY = 'ai-studio-test';
-      const geminiService = new JevService();
-      geminiService.onModuleInit();
+      const geminiService = makeService();
       expect(geminiService.getActiveProviderName()).toContain('gemini');
 
-      process.env.CLASSIFIER_PROVIDER = 'laya';
-      const layaService = new JevService();
-      layaService.onModuleInit();
-      expect(layaService.getActiveProviderName()).toContain('laya');
+      process.env.CLASSIFIER_PROVIDER = 'ollama';
+      const ollamaService = makeService();
+      expect(ollamaService.getActiveProviderName()).toContain('ollama');
+    });
+
+    it('routes to the provider chosen in jobs.config.yaml', () => {
+      expect(
+        makeService({
+          provider: 'ollama',
+          model: 'qwen2.5:3b',
+        }).getActiveProviderName(),
+      ).toBe('ollama (qwen2.5:3b)');
     });
   });
 
   describe('Job & Batch Evaluation', () => {
     it('evaluates single and batch jobs using the System-One client contract', async () => {
-      const service = new JevService();
+      const service = makeService();
       const mockSystemOne = jest.fn().mockImplementation(async (req) => {
         const answers: Record<string, { noul: number }> = {};
         for (const key of Object.keys(req.questions)) {
@@ -118,7 +129,10 @@ describe('System-One Multi-Provider Classifier (JevService)', () => {
         return { answers };
       });
 
-      service.setClientForTesting({ systemOne: mockSystemOne }, 'mock-provider');
+      service.setClientForTesting(
+        { systemOne: mockSystemOne },
+        'mock-provider',
+      );
 
       const batchResults = await service.evaluateJobsBatch(
         [
@@ -142,6 +156,72 @@ describe('System-One Multi-Provider Classifier (JevService)', () => {
       expect(batchResults[0].score).toBe(85);
       expect(batchResults[1].shouldApply).toBe(false);
       expect(batchResults[1].score).toBe(20);
+    });
+
+    it('allocates reasoning headroom and retries truncated JSON for Groq gpt-oss models', async () => {
+      const originalFetch = global.fetch;
+      const fetchMock = jest
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            model: 'openai/gpt-oss-120b',
+            choices: [
+              {
+                finish_reason: 'length',
+                message: {
+                  content: '{"matches_profile":0.04,"is_actual_job_offer":0',
+                },
+              },
+            ],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            model: 'openai/gpt-oss-120b',
+            choices: [
+              {
+                finish_reason: 'stop',
+                message: {
+                  content: '{"matches_profile":0.04,"is_actual_job_offer":0.95}',
+                },
+              },
+            ],
+          }),
+        });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      try {
+        const client = new OpenAiCompatibleClassifierClient({
+          baseUrl: 'https://api.groq.com/openai/v1/chat/completions',
+          apiKey: 'gsk-test',
+          model: 'openai/gpt-oss-120b',
+          providerName: 'Groq System-One',
+        });
+
+        const result = await client.systemOne({
+          state: { title: 'Test Job' },
+          questions: JOB_FIT_QUESTIONS,
+        });
+
+        expect(result.answers.matches_profile.noul).toBe(0.04);
+        expect(result.answers.is_actual_job_offer.noul).toBe(0.95);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+
+        const firstBody = JSON.parse(
+          (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+        ) as Record<string, unknown>;
+        const secondBody = JSON.parse(
+          (fetchMock.mock.calls[1][1] as RequestInit).body as string,
+        ) as Record<string, unknown>;
+
+        expect(firstBody.reasoning_effort).toBe('low');
+        expect(Number(firstBody.max_tokens)).toBeGreaterThanOrEqual(1024);
+        expect(Number(secondBody.max_tokens)).toBeGreaterThanOrEqual(2048);
+      } finally {
+        global.fetch = originalFetch;
+      }
     });
   });
 });

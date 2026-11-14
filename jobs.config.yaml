@@ -81,7 +81,7 @@ profile:
     - "Curitiba"
     - "São Paulo"
 
-# Provedor do Classificador Semântico System-One (openrouter | groq | gemini | ollama | laya | kev | auto)
+# Provedor do Classificador Semântico System-One (openrouter | groq | gemini | ollama | jev | auto)
 classifier:
   provider: "auto"
 

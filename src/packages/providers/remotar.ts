@@ -19,9 +19,7 @@ export const remotarProvider: IProviderConfig = {
   },
 };
 
-export function remotar(
-  overrides?: Partial<IProviderConfig>,
-): IProviderConfig {
+export function remotar(overrides?: Partial<IProviderConfig>): IProviderConfig {
   return {
     ...remotarProvider,
     ...overrides,

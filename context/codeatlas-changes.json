@@ -269,6 +269,116 @@
         "description": "Fixed runtime MODULE_NOT_FOUND error ('Cannot find module ../../packages/core/index.ts') in dist build by removing the explicit '.ts' file extension from tsconfig.json paths so NestJS path-alias rewriting emits extensionless paths ('../../packages/core') that Node.js CJS loader resolves to index.js.",
         "timestamp": "2026-11-14T03:38:29.032Z"
       }
+    },
+    {
+      "graphType": "Code",
+      "id": "1677ac15-7b98-46a7-b98d-f530f014b8eb",
+      "type": "code_change",
+      "data": {
+        "file": "src/packages/cv/index.ts",
+        "agentThought": "fix",
+        "description": "Fixed UnknownDependenciesException in LioApplyCvModule by making LioApplyCoreModule @Global(), marking JobHistoryRepository and BotService as @Optional() in CvOptimizationService, and registering CvOptimizationService in AppModule where database and bot providers live.",
+        "timestamp": "2026-11-14T03:41:40.987Z"
+      }
+    },
+    {
+      "graphType": "Code",
+      "id": "2d1e78d8-fdf6-4671-a22c-fc5e3a1be340",
+      "type": "code_change",
+      "data": {
+        "file": "src/services/jev/classifier-providers.ts",
+        "agentThought": "fix",
+        "description": "Fixed OpenRouter empty response ('Resposta vazia do modelo openrouter/free') in OpenAiCompatibleClassifierClient by increasing max_tokens headroom to 300-2048, disabling reasoning effort on OpenRouter, omitting strict response_format on openrouter/free heterogeneous routing, stripping <think> tags, and adding a 1x retry on empty responses.",
+        "timestamp": "2026-11-14T16:03:35.944Z"
+      }
+    },
+    {
+      "graphType": "Code",
+      "id": "080246ab-e26e-4665-a881-f34349a88a1f",
+      "type": "code_change",
+      "data": {
+        "file": "src/services/jev/classifier-providers.ts",
+        "agentThought": "fix",
+        "description": "Removed 'reasoning: { effort: \"none\" }' from OpenRouter requests in OpenAiCompatibleClassifierClient because OpenRouter returns HTTP 400 ('Reasoning is mandatory for this endpoint and cannot be disabled') when routing openrouter/free to mandatory-reasoning models.",
+        "timestamp": "2026-11-14T16:09:19.020Z"
+      }
+    },
+    {
+      "graphType": "Code",
+      "id": "f55188a2-8c6a-4d46-9796-abd155463457",
+      "type": "code_change",
+      "data": {
+        "file": "src/app.module.ts",
+        "agentThought": "fix",
+        "description": "Fixed AppModule evaluating process.env.CLASSIFIER_PROVIDER before ConfigModule.forRoot() ran (which overwrote .env CLASSIFIER_PROVIDER=jev with 'auto' and forced OpenRouter), prevented createLioApply from overwriting explicit CLASSIFIER_PROVIDER with 'auto', and wrapped parseSystemOneJsonOutput in the OpenRouter retry loop to retry truncated JSON outputs.",
+        "timestamp": "2026-11-14T16:23:16.595Z"
+      }
+    },
+    {
+      "graphType": "Code",
+      "id": "8cfd1bff-b940-42d2-8964-dfeb64c73ca8",
+      "type": "code_change",
+      "data": {
+        "file": "src/services/cv/cv-llm.service.ts",
+        "agentThought": "decision",
+        "description": "Added multi-provider LLM support (groq, gemini, openrouter, ollama, openai-compatible, auto) to CvLlmService, JobConfigService.getCvOptimizationConfig, and typstCvEngine, while explicitly rejecting System-One-only classifiers (jev, kev, laya).",
+        "timestamp": "2026-11-14T16:44:52.039Z"
+      }
+    },
+    {
+      "graphType": "Code",
+      "id": "0bbb53e3-0c72-4018-a470-430e4b046857",
+      "type": "code_change",
+      "data": {
+        "file": "src/services/jev/classifier-providers.ts",
+        "agentThought": "fix",
+        "description": "Added automatic HTTP 429 rate-limit retry with Retry-After / error-message delay parsing (up to 3 retries, skipping daily quota exhaustion) in OpenAiCompatibleClassifierClient.",
+        "timestamp": "2026-11-14T16:56:16.385Z"
+      }
+    },
+    {
+      "graphType": "Code",
+      "id": "aa9919ff-a0d8-48b9-8e00-11b00ee6b225",
+      "type": "code_change",
+      "data": {
+        "file": "src/services/jev/classifier-providers.ts",
+        "agentThought": "fix",
+        "description": "Added fallback retry without response_format and with expanded max_tokens when Groq/OpenAI-compatible reasoning models return HTTP 400 json_validate_failed (failed_generation: \"\") or empty/truncated JSON.",
+        "timestamp": "2026-11-14T17:09:46.159Z"
+      }
+    },
+    {
+      "graphType": "Code",
+      "id": "76ee0c23-22c1-4944-ac92-97c343df3fdb",
+      "type": "code_change",
+      "data": {
+        "file": "src/services/jev/classifier-providers.ts",
+        "agentThought": "fix",
+        "description": "Fixed truncated JSON from reasoning models (like Groq openai/gpt-oss-120b) in OpenAiCompatibleClassifierClient by allocating reasoning token headroom in max_tokens, setting reasoning_effort='low' for Groq gpt-oss models, and increasing retryMaxTokens to >=1024/2048.",
+        "timestamp": "2026-11-14T17:51:17.368Z"
+      }
+    },
+    {
+      "graphType": "Code",
+      "id": "fe7bf96d-5613-4807-a0f1-c88df48faea3",
+      "type": "code_change",
+      "data": {
+        "file": "src/services/jev/jev.service.spec.ts",
+        "agentThought": "test",
+        "description": "Added unit test verifying reasoning_effort='low', reasoning max_tokens headroom, and truncated JSON retry for Groq openai/gpt-oss-120b in jev.service.spec.ts.",
+        "timestamp": "2026-11-14T17:51:19.251Z"
+      }
+    },
+    {
+      "graphType": "Code",
+      "id": "6e0f934c-ff9f-469d-afd3-cac3a92f1fa1",
+      "type": "code_change",
+      "data": {
+        "file": "src/services/classifier/classifier-clients.ts",
+        "agentThought": "fix",
+        "description": "Removed Kev completely and simplified classifier-clients.ts from 662 to 361 lines",
+        "timestamp": "2026-11-14T22:11:47.714Z"
+      }
     }
   ],
   "edges": [
@@ -390,6 +500,56 @@
     {
       "from": "0ed795a8-5fea-4c62-97a3-332608ba130d",
       "to": "tsconfig.json",
+      "type": "MODIFIES"
+    },
+    {
+      "from": "1677ac15-7b98-46a7-b98d-f530f014b8eb",
+      "to": "src/packages/cv/index.ts",
+      "type": "MODIFIES"
+    },
+    {
+      "from": "2d1e78d8-fdf6-4671-a22c-fc5e3a1be340",
+      "to": "src/services/jev/classifier-providers.ts",
+      "type": "MODIFIES"
+    },
+    {
+      "from": "080246ab-e26e-4665-a881-f34349a88a1f",
+      "to": "src/services/jev/classifier-providers.ts",
+      "type": "MODIFIES"
+    },
+    {
+      "from": "f55188a2-8c6a-4d46-9796-abd155463457",
+      "to": "src/app.module.ts",
+      "type": "MODIFIES"
+    },
+    {
+      "from": "8cfd1bff-b940-42d2-8964-dfeb64c73ca8",
+      "to": "src/services/cv/cv-llm.service.ts",
+      "type": "MODIFIES"
+    },
+    {
+      "from": "0bbb53e3-0c72-4018-a470-430e4b046857",
+      "to": "src/services/jev/classifier-providers.ts",
+      "type": "MODIFIES"
+    },
+    {
+      "from": "aa9919ff-a0d8-48b9-8e00-11b00ee6b225",
+      "to": "src/services/jev/classifier-providers.ts",
+      "type": "MODIFIES"
+    },
+    {
+      "from": "76ee0c23-22c1-4944-ac92-97c343df3fdb",
+      "to": "src/services/jev/classifier-providers.ts",
+      "type": "MODIFIES"
+    },
+    {
+      "from": "fe7bf96d-5613-4807-a0f1-c88df48faea3",
+      "to": "src/services/jev/jev.service.spec.ts",
+      "type": "MODIFIES"
+    },
+    {
+      "from": "6e0f934c-ff9f-469d-afd3-cac3a92f1fa1",
+      "to": "src/services/classifier/classifier-clients.ts",
       "type": "MODIFIES"
     }
   ]

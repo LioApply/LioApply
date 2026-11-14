@@ -1,5 +1,5 @@
 import { JobConfigService } from '../../config/job-config.service';
-import { JevService } from '../../services/jev/jev.service';
+import { createClassifierService } from '../../services/classifier/classifier.service';
 import { JobDigestFormatter } from '../../services/task-service/job-digest.formatter';
 import {
   JobDeduplicationService,
@@ -62,14 +62,13 @@ export function createLioApply(options?: LioApplyOptions) {
   const deps: PipelineDeps = {
     configService,
     deduplicationService: new JobDeduplicationService(),
-    jevService: new JevService(configService),
+    classifierService: createClassifierService(configService),
     digestFormatter: new JobDigestFormatter(),
     playwrightService: new PlaywrightService(),
     defaultProviders: resolveProviders(options?.providers),
     profileOverride,
     scraperConcurrency: options?.scraperConcurrency,
   };
-  deps.jevService.initializeProvider();
 
   return {
     cv: options?.cv,
@@ -96,9 +95,7 @@ export function createLioApply(options?: LioApplyOptions) {
         candidates,
       ),
 
-    async optimizeCv(
-      job: CvOptimizationInput | ApprovedCandidateJobDto,
-    ) {
+    async optimizeCv(job: CvOptimizationInput | ApprovedCandidateJobDto) {
       if (!options?.cv) {
         throw new Error(
           'Nenhum plugin de currículo configurado. Passe `cv: typstCvEngine(...)` no createLioApply().',

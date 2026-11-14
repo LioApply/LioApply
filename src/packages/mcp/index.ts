@@ -66,7 +66,8 @@ export const LIOAPPLY_MCP_TOOLS: McpToolDefinition[] = [
       properties: {
         candidates: {
           type: 'array',
-          description: 'List of candidate jobs returned by lioapply_search_jobs.',
+          description:
+            'List of candidate jobs returned by lioapply_search_jobs.',
           items: {
             type: 'object',
             properties: {
@@ -86,7 +87,7 @@ export const LIOAPPLY_MCP_TOOLS: McpToolDefinition[] = [
   {
     name: 'lioapply_classify_jobs',
     description:
-      'Evaluates candidate jobs in batch using the configured System-One Multi-Provider classifier (openrouter, groq, gemini, ollama, laya, kev, or jev).',
+      'Evaluates candidate jobs in batch using the configured System-One Multi-Provider classifier (openrouter, groq, gemini, ollama, or jev).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -178,7 +179,8 @@ export function createLioApplyMcpServer(options?: LioApplyOptions) {
         }
 
         case 'lioapply_get_classification_rubric': {
-          const candidates = (args.candidates || []) as NormalizedCandidateJob[];
+          const candidates = (args.candidates ||
+            []) as NormalizedCandidateJob[];
           const rubric = lio.buildSystemOneClassificationState(candidates);
           return {
             content: [
@@ -191,7 +193,8 @@ export function createLioApplyMcpServer(options?: LioApplyOptions) {
         }
 
         case 'lioapply_classify_jobs': {
-          const candidates = (args.candidates || []) as NormalizedCandidateJob[];
+          const candidates = (args.candidates ||
+            []) as NormalizedCandidateJob[];
           const approvedJobs = await lio.classifyJobs(candidates);
           return {
             content: [

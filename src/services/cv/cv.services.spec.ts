@@ -165,7 +165,8 @@ describe('CV Optimization Pipeline Services', () => {
           title: 'Desenvolvedor Full Stack Node/React',
           company: 'TechCorp',
           url: 'https://example.com/jobs/42',
-          description: 'Requisitos: React, Next.js, Node.js, NestJS, Docker, PostgreSQL, testes automatizados com Jest e CI/CD.',
+          description:
+            'Requisitos: React, Next.js, Node.js, NestJS, Docker, PostgreSQL, testes automatizados com Jest e CI/CD.',
         }),
       };
       const mockLlmService = {
@@ -177,7 +178,7 @@ describe('CV Optimization Pipeline Services', () => {
           technologies: sampleBaseCv.technologies,
         }),
       };
-      const mockJevService = {
+      const mockClassifierService = {
         evaluateTailoredCv: jest.fn().mockResolvedValue({
           isCredible: true,
           credibilityProbability: 0.95,
@@ -196,7 +197,7 @@ describe('CV Optimization Pipeline Services', () => {
         mockConfigService as any,
         mockHistoryRepo as any,
         mockLlmService as any,
-        mockJevService as any,
+        mockClassifierService as any,
         templateService,
         compilerService,
         mockBotService as any,
@@ -237,7 +238,7 @@ describe('CV Optimization Pipeline Services', () => {
       process.env = originalEnv;
     });
 
-    it('resolves groq, gemini, ollama, and openrouter providers and rejects jev/kev/laya', () => {
+    it('resolves groq, gemini, ollama, and openrouter providers and rejects jev', () => {
       const makeService = (provider?: any) =>
         new CvLlmService({
           getCvOptimizationConfig: jest.fn().mockReturnValue({
@@ -271,12 +272,6 @@ describe('CV Optimization Pipeline Services', () => {
       });
 
       expect(() => makeService('jev').resolveLlmProvider()).toThrow(
-        /System-One/,
-      );
-      expect(() => makeService('kev').resolveLlmProvider()).toThrow(
-        /System-One/,
-      );
-      expect(() => makeService('laya').resolveLlmProvider()).toThrow(
         /System-One/,
       );
     });

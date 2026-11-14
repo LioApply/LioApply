@@ -2,10 +2,7 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { BotService } from '../bot/bot.service';
 import { JobHistoryRepository } from '../../repositories/job-history.repository';
 import { JobDigestFormatter, ApprovedJobDto } from './job-digest.formatter';
-import {
-  LIOAPPLY_INSTANCE,
-  type LioApplyInstance,
-} from '@lioapply/core';
+import { LIOAPPLY_INSTANCE, type LioApplyInstance } from '@lioapply/core';
 
 @Injectable()
 export class TaskService {

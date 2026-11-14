@@ -1,6 +1,10 @@
 import { DynamicModule, Global, Module } from '@nestjs/common';
 import { JobConfigService } from '../../config/job-config.service';
-import { JevService } from '../../services/jev/jev.service';
+import { ClassifierService } from '../../services/classifier/classifier.service';
+import {
+  CLASSIFIER_PROVIDER_CLASSES,
+  CLASSIFIER_PROVIDERS,
+} from '../../services/classifier/providers';
 import { JobDigestFormatter } from '../../services/task-service/job-digest.formatter';
 import { JobDeduplicationService } from '../../utils/deduplication';
 import { PlaywrightService, resolveProviders } from '../providers';
@@ -22,7 +26,13 @@ export class LioApplyCoreModule {
       providers: [
         JobConfigService,
         JobDeduplicationService,
-        JevService,
+        ...CLASSIFIER_PROVIDER_CLASSES,
+        {
+          provide: CLASSIFIER_PROVIDERS,
+          useFactory: (...providers: unknown[]) => providers,
+          inject: CLASSIFIER_PROVIDER_CLASSES,
+        },
+        ClassifierService,
         JobDigestFormatter,
         PlaywrightService,
         LioApplyCoreService,
@@ -38,7 +48,7 @@ export class LioApplyCoreModule {
       exports: [
         JobConfigService,
         JobDeduplicationService,
-        JevService,
+        ClassifierService,
         JobDigestFormatter,
         PlaywrightService,
         LioApplyCoreService,

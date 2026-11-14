@@ -4,9 +4,15 @@ import * as path from 'path';
 import * as YAML from 'yaml';
 import { AppJobConfig } from '../interfaces/job-config/job-config.interface';
 import { UserProfileCriteria } from '../utils/jev';
-import { ILocationOption, IProviderConfig } from '../interfaces/isearch/isearch.interface';
-import { BaseCvData, CvOptimizationConfig } from '../interfaces/cv/cv.interface';
-import { ClassifierProviderConfig } from '../services/jev/classifier-providers';
+import {
+  ILocationOption,
+  IProviderConfig,
+} from '../interfaces/isearch/isearch.interface';
+import {
+  BaseCvData,
+  CvOptimizationConfig,
+} from '../interfaces/cv/cv.interface';
+import { ClassifierProviderConfig } from '../services/classifier/classifier-clients';
 import { resolveProviders } from '../packages/providers';
 
 @Injectable()
@@ -207,7 +213,9 @@ export class JobConfigService implements OnModuleInit {
 
   getProviders(): IProviderConfig[] {
     const envProviders = process.env.SEARCH_PROVIDERS
-      ? process.env.SEARCH_PROVIDERS.split(',').map((p) => p.trim()).filter(Boolean)
+      ? process.env.SEARCH_PROVIDERS.split(',')
+          .map((p) => p.trim())
+          .filter(Boolean)
       : undefined;
     return resolveProviders(envProviders || this.config?.search?.providers);
   }
@@ -232,12 +240,9 @@ export class JobConfigService implements OnModuleInit {
         (process.env.CLASSIFIER_PROVIDER as any) ||
         this.config?.classifier?.provider ||
         'auto',
-      model:
-        process.env.CLASSIFIER_MODEL ||
-        this.config?.classifier?.model,
+      model: process.env.CLASSIFIER_MODEL || this.config?.classifier?.model,
       baseUrl:
-        process.env.CLASSIFIER_BASE_URL ||
-        this.config?.classifier?.baseUrl,
+        process.env.CLASSIFIER_BASE_URL || this.config?.classifier?.baseUrl,
     };
   }
 
@@ -257,9 +262,7 @@ export class JobConfigService implements OnModuleInit {
         this.config.cvOptimization?.model ||
         process.env.OPENROUTER_MODEL ||
         this.config.cvOptimization?.openRouterModel,
-      baseUrl:
-        process.env.CV_BASE_URL ||
-        this.config.cvOptimization?.baseUrl,
+      baseUrl: process.env.CV_BASE_URL || this.config.cvOptimization?.baseUrl,
       openRouterModel,
       baseCvPath:
         process.env.CV_BASE_PATH ||
@@ -274,8 +277,14 @@ export class JobConfigService implements OnModuleInit {
       return YAML.parse(envCvYaml) as BaseCvData;
     }
 
-    if (process.env.CV_BASE_BASE64 && process.env.CV_BASE_BASE64.trim().length > 0) {
-      const decoded = Buffer.from(process.env.CV_BASE_BASE64, 'base64').toString('utf8');
+    if (
+      process.env.CV_BASE_BASE64 &&
+      process.env.CV_BASE_BASE64.trim().length > 0
+    ) {
+      const decoded = Buffer.from(
+        process.env.CV_BASE_BASE64,
+        'base64',
+      ).toString('utf8');
       return YAML.parse(decoded) as BaseCvData;
     }
 
@@ -318,20 +327,19 @@ export class JobConfigService implements OnModuleInit {
   }
 
   private normalizeConfig(raw: any): AppJobConfig {
-    const queries: string[] =
-      Array.isArray(raw?.search?.queries)
-        ? raw.search.queries.map((q: any) => String(q).trim()).filter(Boolean)
-        : [];
+    const queries: string[] = Array.isArray(raw?.search?.queries)
+      ? raw.search.queries.map((q: any) => String(q).trim()).filter(Boolean)
+      : [];
 
-    const locations: ILocationOption[] =
-      Array.isArray(raw?.search?.locations)
-        ? raw.search.locations
-        : [];
+    const locations: ILocationOption[] = Array.isArray(raw?.search?.locations)
+      ? raw.search.locations
+      : [];
 
-    const providers: string[] | undefined =
-      Array.isArray(raw?.search?.providers)
-        ? raw.search.providers.map((p: any) => String(p).trim()).filter(Boolean)
-        : undefined;
+    const providers: string[] | undefined = Array.isArray(
+      raw?.search?.providers,
+    )
+      ? raw.search.providers.map((p: any) => String(p).trim()).filter(Boolean)
+      : undefined;
 
     const profile: Partial<UserProfileCriteria> =
       raw?.profile && typeof raw.profile === 'object'
