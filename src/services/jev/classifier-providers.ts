@@ -179,7 +179,7 @@ export class OpenAiCompatibleClassifierClient implements SystemOneClient {
     const userPayload = buildCompactClassifierPayload(request);
     const isOpenRouter = this.options.baseUrl.includes('openrouter.ai');
 
-    const maxAttempts = isOpenRouter ? 2 : 1;
+    const maxAttempts = 2;
     const maxRateLimitRetries = 3;
     let rateLimitRetries = 0;
     let lastError = '';
@@ -197,7 +197,7 @@ export class OpenAiCompatibleClassifierClient implements SystemOneClient {
         ],
       };
 
-      if (!isOpenRouter) {
+      if (!isOpenRouter && attempt === 1) {
         bodyPayload.response_format = { type: 'json_object' };
       }
 
@@ -231,7 +231,10 @@ export class OpenAiCompatibleClassifierClient implements SystemOneClient {
           continue;
         }
 
-        if (attempt < maxAttempts) {
+        const isJsonValidateFailed =
+          response.status === 400 && errBody.includes('json_validate_failed');
+
+        if ((isOpenRouter || isJsonValidateFailed) && attempt < maxAttempts) {
           attempt++;
           continue;
         }
