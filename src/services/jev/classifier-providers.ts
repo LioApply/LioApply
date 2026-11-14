@@ -79,6 +79,7 @@ export function parseSystemOneJsonOutput<
   Q extends Record<string, NoulQuestion>,
 >(rawText: string, questions: Q): SystemOneResponse<Q> {
   const cleaned = rawText
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/i, '')
     .trim();
@@ -139,48 +140,77 @@ export class OpenAiCompatibleClassifierClient implements SystemOneClient {
     request: SystemOneRequest<Q>,
   ): Promise<SystemOneResponse<Q>> {
     const questionCount = Object.keys(request.questions).length;
-    const maxTokens = Math.min(1024, Math.max(80, questionCount * 28));
+    const maxTokens = Math.min(2048, Math.max(300, questionCount * 50));
     const userPayload = buildCompactClassifierPayload(request);
+    const isOpenRouter = this.options.baseUrl.includes('openrouter.ai');
 
-    const response = await fetch(this.options.baseUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.options.apiKey}`,
-        'Content-Type': 'application/json',
-        ...(this.options.extraHeaders || {}),
-      },
-      body: JSON.stringify({
+    const maxAttempts = isOpenRouter ? 2 : 1;
+    let lastError = '';
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const bodyPayload: Record<string, unknown> = {
         model: this.options.model,
         temperature: 0,
         top_p: 1,
         max_tokens: maxTokens,
-        response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: SYSTEM_ONE_CLASSIFIER_PROMPT },
           { role: 'user', content: userPayload },
         ],
-      }),
-      signal: AbortSignal.timeout(30000),
-    });
+      };
 
-    if (!response.ok) {
-      const errBody = await response.text().catch(() => '');
-      throw new Error(
-        `[${this.options.providerName}] HTTP ${response.status}: ${errBody.substring(0, 250)}`,
-      );
+      if (isOpenRouter) {
+        bodyPayload.reasoning = { effort: 'none', exclude: true };
+      } else {
+        bodyPayload.response_format = { type: 'json_object' };
+      }
+
+      const response = await fetch(this.options.baseUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.options.apiKey}`,
+          'Content-Type': 'application/json',
+          ...(this.options.extraHeaders || {}),
+        },
+        body: JSON.stringify(bodyPayload),
+        signal: AbortSignal.timeout(30000),
+      });
+
+      if (!response.ok) {
+        const errBody = await response.text().catch(() => '');
+        lastError = `[${this.options.providerName}] HTTP ${response.status}: ${errBody.substring(0, 250)}`;
+        if (attempt < maxAttempts) continue;
+        throw new Error(lastError);
+      }
+
+      const data = (await response.json()) as {
+        model?: string;
+        choices?: Array<{
+          finish_reason?: string;
+          message?: { content?: string | null; reasoning?: string | null };
+        }>;
+      };
+
+      const msg = data?.choices?.[0]?.message;
+      const content =
+        (typeof msg?.content === 'string' && msg.content.trim()) ||
+        (typeof msg?.reasoning === 'string' && msg.reasoning.includes('{')
+          ? msg.reasoning.trim()
+          : '');
+
+      if (!content) {
+        lastError = `[${this.options.providerName}] Resposta vazia do modelo ${data?.model || this.options.model} (finish_reason: ${data?.choices?.[0]?.finish_reason || 'unknown'}).`;
+        if (attempt < maxAttempts) continue;
+        throw new Error(lastError);
+      }
+
+      return parseSystemOneJsonOutput(content, request.questions);
     }
 
-    const data = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const content = data?.choices?.[0]?.message?.content;
-    if (!content) {
-      throw new Error(
+    throw new Error(
+      lastError ||
         `[${this.options.providerName}] Resposta vazia do modelo ${this.options.model}.`,
-      );
-    }
-
-    return parseSystemOneJsonOutput(content, request.questions);
+    );
   }
 }
 
