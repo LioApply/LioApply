@@ -1,8 +1,11 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { BotService } from '../bot/bot.service';
 import { JobHistoryRepository } from '../../repositories/job-history.repository';
 import { JobDigestFormatter, ApprovedJobDto } from './job-digest.formatter';
-import { LioApplyCoreService } from '@lioapply/core';
+import {
+  LIOAPPLY_INSTANCE,
+  type LioApplyInstance,
+} from '@lioapply/core';
 
 @Injectable()
 export class TaskService {
@@ -12,23 +15,25 @@ export class TaskService {
     private readonly botService: BotService,
     private readonly historyRepository: JobHistoryRepository,
     private readonly digestFormatter: JobDigestFormatter,
-    @Optional() private readonly lioCore?: LioApplyCoreService,
+    @Optional()
+    @Inject(LIOAPPLY_INSTANCE)
+    private readonly lio?: LioApplyInstance,
   ) {}
 
   async runScrapeJob(): Promise<ApprovedJobDto[]> {
+    if (!this.lio) {
+      this.logger.warn('Instância LioApply (LIOAPPLY_INSTANCE) não injetada.');
+      return [];
+    }
+
     // 1. Busca histórico recente do PostgreSQL para deduplicação
     const recentStoredJobs = await this.historyRepository.getRecentJobs(
       300,
       30,
     );
 
-    if (!this.lioCore) {
-      this.logger.warn('LioApplyCoreService não injetado.');
-      return [];
-    }
-
-    // 2. O @lioapply/core executa o pipeline: Scrape -> Deduplica -> Classifica em Lote
-    const { approvedJobs } = await this.lioCore.searchAndClassify({
+    // 2. Executa o pipeline declarativo via API do @lioapply/core
+    const { approvedJobs } = await this.lio.searchAndClassify({
       existingJobs: recentStoredJobs,
     });
 

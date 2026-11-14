@@ -9,6 +9,7 @@ import { UserProfileCriteria } from '../../utils/jev';
 import { BuiltinProviderName } from '../providers';
 
 export const LIOAPPLY_PROVIDERS = 'LIOAPPLY_PROVIDERS';
+export const LIOAPPLY_INSTANCE = 'LIOAPPLY_INSTANCE';
 
 export interface CvOptimizationInput {
   title: string;

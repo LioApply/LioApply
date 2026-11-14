@@ -5,7 +5,12 @@ import { JobDigestFormatter } from '../../services/task-service/job-digest.forma
 import { JobDeduplicationService } from '../../utils/deduplication';
 import { PlaywrightService, resolveProviders } from '../providers';
 import { LioApplyCoreService } from './core.service';
-import { LIOAPPLY_PROVIDERS, LioApplyOptions } from './types';
+import { createLioApply } from './create-lio-apply';
+import {
+  LIOAPPLY_INSTANCE,
+  LIOAPPLY_PROVIDERS,
+  LioApplyOptions,
+} from './types';
 
 @Global()
 @Module({})
@@ -25,6 +30,10 @@ export class LioApplyCoreModule {
           provide: LIOAPPLY_PROVIDERS,
           useValue: resolved,
         },
+        {
+          provide: LIOAPPLY_INSTANCE,
+          useFactory: () => createLioApply(options),
+        },
       ],
       exports: [
         JobConfigService,
@@ -34,6 +43,7 @@ export class LioApplyCoreModule {
         PlaywrightService,
         LioApplyCoreService,
         LIOAPPLY_PROVIDERS,
+        LIOAPPLY_INSTANCE,
       ],
     };
   }

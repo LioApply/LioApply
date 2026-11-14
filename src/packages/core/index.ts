@@ -1,7 +1,8 @@
-export { createLioApply } from './create-lio-apply';
+export { createLioApply, type LioApplyInstance } from './create-lio-apply';
 export { LioApplyCoreService } from './core.service';
 export { LioApplyCoreModule } from './core.module';
 export {
+  LIOAPPLY_INSTANCE,
   LIOAPPLY_PROVIDERS,
   type ApprovedCandidateJobDto,
   type CvEnginePlugin,

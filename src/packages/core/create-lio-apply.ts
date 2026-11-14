@@ -118,3 +118,5 @@ export function createLioApply(options?: LioApplyOptions) {
     },
   };
 }
+
+export type LioApplyInstance = ReturnType<typeof createLioApply>;

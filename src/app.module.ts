@@ -8,13 +8,22 @@ import { BotService } from './services/bot/bot.service';
 import { JobHistoryRepository } from './repositories/job-history.repository';
 import { LinkedinApifyService } from './services/Linkedin/linkedin-apify.service';
 import { LioApplyCoreModule } from '@lioapply/core';
-import { LioApplyCvModule } from '@lioapply/cv';
+import { glassdoor, linkedin, remotar } from '@lioapply/providers';
+import { LioApplyCvModule, typstCvEngine } from '@lioapply/cv';
 import { CvOptimizationService } from './services/cv/cv-optimization.service';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
-    LioApplyCoreModule.register(),
+    LioApplyCoreModule.register({
+      providers: [linkedin(), glassdoor(), remotar()],
+      classifier: {
+        provider: (process.env.CLASSIFIER_PROVIDER as any) || 'auto',
+      },
+      cv: typstCvEngine({
+        baseCv: process.env.CV_BASE_PATH || './cv.base.yaml',
+      }),
+    }),
     LioApplyCvModule.register(),
   ],
   controllers: [AppController],
