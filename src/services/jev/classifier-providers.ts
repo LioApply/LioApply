@@ -140,7 +140,8 @@ export class OpenAiCompatibleClassifierClient implements SystemOneClient {
     request: SystemOneRequest<Q>,
   ): Promise<SystemOneResponse<Q>> {
     const questionCount = Object.keys(request.questions).length;
-    const maxTokens = Math.min(2048, Math.max(300, questionCount * 50));
+    const tightMaxTokens = Math.min(1024, Math.max(80, questionCount * 28));
+    const retryMaxTokens = Math.min(2048, Math.max(400, questionCount * 60));
     const userPayload = buildCompactClassifierPayload(request);
     const isOpenRouter = this.options.baseUrl.includes('openrouter.ai');
 
@@ -148,6 +149,7 @@ export class OpenAiCompatibleClassifierClient implements SystemOneClient {
     let lastError = '';
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const maxTokens = attempt === 1 ? tightMaxTokens : retryMaxTokens;
       const bodyPayload: Record<string, unknown> = {
         model: this.options.model,
         temperature: 0,
