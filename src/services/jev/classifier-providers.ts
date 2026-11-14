@@ -161,9 +161,7 @@ export class OpenAiCompatibleClassifierClient implements SystemOneClient {
         ],
       };
 
-      if (isOpenRouter) {
-        bodyPayload.reasoning = { effort: 'none', exclude: true };
-      } else {
+      if (!isOpenRouter) {
         bodyPayload.response_format = { type: 'json_object' };
       }
 
