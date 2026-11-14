@@ -26,7 +26,7 @@ function applyEnvOptions(options?: LioApplyOptions) {
   if (typeof options?.profile === 'string') {
     process.env.CONFIG_PATH = options.profile;
   }
-  if (options?.classifier?.provider) {
+  if (options?.classifier?.provider && options.classifier.provider !== 'auto') {
     process.env.CLASSIFIER_PROVIDER = options.classifier.provider;
   }
   if (options?.classifier?.apiKey) {

@@ -17,9 +17,6 @@ import { CvOptimizationService } from './services/cv/cv-optimization.service';
     ConfigModule.forRoot(),
     LioApplyCoreModule.register({
       providers: [linkedin(), glassdoor(), remotar()],
-      classifier: {
-        provider: (process.env.CLASSIFIER_PROVIDER as any) || 'auto',
-      },
       cv: typstCvEngine({
         baseCv: process.env.CV_BASE_PATH || './cv.base.yaml',
       }),

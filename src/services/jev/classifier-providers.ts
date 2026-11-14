@@ -204,7 +204,14 @@ export class OpenAiCompatibleClassifierClient implements SystemOneClient {
         throw new Error(lastError);
       }
 
-      return parseSystemOneJsonOutput(content, request.questions);
+      try {
+        return parseSystemOneJsonOutput(content, request.questions);
+      } catch (parseErr) {
+        lastError =
+          parseErr instanceof Error ? parseErr.message : String(parseErr);
+        if (attempt < maxAttempts) continue;
+        throw parseErr;
+      }
     }
 
     throw new Error(
