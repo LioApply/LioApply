@@ -1,14 +1,17 @@
 import { IProviderConfig } from '../../interfaces/isearch/isearch.interface';
 import {
   createGlassdoorProvider,
+  glassdoor,
   glassdoorProvider,
 } from './glassdoor';
 import {
   createLinkedinProvider,
+  linkedin,
   linkedinProvider,
 } from './linkedin';
 import {
   createRemotarProvider,
+  remotar,
   remotarProvider,
 } from './remotar';
 import { PlaywrightService } from '../../services/playWrightService/scrapservice.service';
@@ -56,10 +59,13 @@ export function resolveProviders(
 }
 
 export {
+  linkedin,
   linkedinProvider,
   createLinkedinProvider,
+  glassdoor,
   glassdoorProvider,
   createGlassdoorProvider,
+  remotar,
   remotarProvider,
   createRemotarProvider,
   PlaywrightService,

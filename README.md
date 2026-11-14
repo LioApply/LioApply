@@ -165,30 +165,34 @@ Você também pode importar os pacotes modulares diretamente em código TypeScri
 
 ```typescript
 import { createLioApply } from '@lioapply/core';
-import { createLinkedinProvider } from '@lioapply/providers/linkedin';
-import { createGlassdoorProvider } from '@lioapply/providers/glassdoor';
-import { createRemotarProvider } from '@lioapply/providers/remotar';
+import { linkedin, glassdoor, remotar } from '@lioapply/providers';
+import { typstCvEngine } from '@lioapply/cv';
 
 const lio = createLioApply({
-  providers: [
-    createLinkedinProvider(),
-    createGlassdoorProvider(),
-    createRemotarProvider(),
-  ],
+  // 1. Injete apenas os providers que desejar
+  providers: [linkedin(), glassdoor(), remotar()],
+
+  // 2. Escolha o classificador (ou 'none' para classificar fora, ex: via MCP)
   classifier: {
-    provider: 'auto', // 'openrouter' | 'groq' | 'gemini' | 'ollama' | 'laya' | 'kev' | 'jev'
+    provider: 'auto', // 'openrouter' | 'groq' | 'gemini' | 'ollama' | 'laya' | 'kev' | 'jev' | 'none'
+    apiKey: process.env.OPEN_ROUTER_API_KEY,
   },
+
+  // 3. Caminho do jobs.config.yaml ou objeto de perfil inline
+  profile: './jobs.config.yaml',
+
+  // 4. Plugin opcional de otimização de currículo via Typst
+  cv: typstCvEngine({
+    baseCv: './cv.base.yaml',
+    apiKey: process.env.OPEN_ROUTER_API_KEY,
+  }),
 });
 
 // 1. Buscar, deduplicar e classificar vagas em lote
 const { approvedJobs, digestText } = await lio.searchAndClassify();
 
 // 2. Gerar currículo em PDF via Typst sob demanda
-const { pdfBuffer, fileName, evaluation } = await lio.cv.optimizeForJob({
-  title: approvedJobs[0].title,
-  company: approvedJobs[0].company,
-  description: approvedJobs[0].previewText,
-});
+const { pdfBuffer, fileName, evaluation } = await lio.optimizeCv(approvedJobs[0]);
 ```
 
 ---

@@ -8,6 +8,7 @@ import {
 
 export type ClassifierProviderType =
   | 'auto'
+  | 'none'
   | 'openrouter'
   | 'groq'
   | 'gemini'

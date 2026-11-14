@@ -5,18 +5,18 @@ import {
   glassdoorProvider,
   remotarProvider,
 } from '@lioapply/providers';
-import { createLinkedinProvider } from '@lioapply/providers/linkedin';
-import { createGlassdoorProvider } from '@lioapply/providers/glassdoor';
-import { createRemotarProvider } from '@lioapply/providers/remotar';
-import { createCvEngine, LioApplyCvModule } from '@lioapply/cv';
+import { linkedin } from '@lioapply/providers/linkedin';
+import { glassdoor } from '@lioapply/providers/glassdoor';
+import { remotar } from '@lioapply/providers/remotar';
+import { typstCvEngine, LioApplyCvModule } from '@lioapply/cv';
 import { createLioApplyMcpServer } from '@lioapply/mcp';
 
 describe('LioApply Injectable Packages (@lioapply/*)', () => {
   describe('@lioapply/providers & subpath imports', () => {
     it('supports subpath factory imports (@lioapply/providers/<provider>)', () => {
-      const customLinkedin = createLinkedinProvider({ name: 'linkedin-custom' });
-      const customGlassdoor = createGlassdoorProvider();
-      const customRemotar = createRemotarProvider();
+      const customLinkedin = linkedin({ name: 'linkedin-custom' });
+      const customGlassdoor = glassdoor();
+      const customRemotar = remotar();
 
       expect(customLinkedin.name).toBe('linkedin-custom');
       expect(customGlassdoor.name).toBe('glassdoor');
@@ -37,16 +37,20 @@ describe('LioApply Injectable Packages (@lioapply/*)', () => {
   });
 
   describe('@lioapply/core (createLioApply & LioApplyCoreModule)', () => {
-    it('creates a LioApply SDK instance with selective provider injection and System-One rubric builder', () => {
+    it('creates a LioApply SDK instance with declarative providers, profile path, and injected cv plugin', () => {
+      const cvPlugin = typstCvEngine({ baseCv: './cv.base.example.yaml' });
       const lio = createLioApply({
-        providers: ['linkedin', 'glassdoor'],
+        providers: [linkedin(), glassdoor()],
         classifier: { provider: 'openrouter', apiKey: 'test-key' },
+        profile: './jobs.config.yaml',
+        cv: cvPlugin,
       });
 
       expect(lio.getProviders().map((p) => p.name)).toEqual([
         'linkedin',
         'glassdoor',
       ]);
+      expect(lio.cv).toBe(cvPlugin);
 
       const rubric = lio.buildSystemOneClassificationState([
         {
@@ -71,9 +75,9 @@ describe('LioApply Injectable Packages (@lioapply/*)', () => {
     });
   });
 
-  describe('@lioapply/cv (createCvEngine & LioApplyCvModule)', () => {
+  describe('@lioapply/cv (typstCvEngine & LioApplyCvModule)', () => {
     it('creates standalone CV engine capable of rendering Typst documents', () => {
-      const cv = createCvEngine();
+      const cv = typstCvEngine();
       const baseCv = cv.getBaseCv();
       const typstDoc = cv.renderTypst(baseCv, {
         title: 'Engenheiro de Software Pleno',

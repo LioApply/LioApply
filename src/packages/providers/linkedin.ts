@@ -20,7 +20,7 @@ export const linkedinProvider: IProviderConfig = {
   },
 };
 
-export function createLinkedinProvider(
+export function linkedin(
   overrides?: Partial<IProviderConfig>,
 ): IProviderConfig {
   return {
@@ -32,3 +32,5 @@ export function createLinkedinProvider(
     },
   };
 }
+
+export const createLinkedinProvider = linkedin;

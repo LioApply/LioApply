@@ -188,6 +188,16 @@ export class JevService implements OnModuleInit {
         break;
       }
 
+      case 'none': {
+        this.client = null;
+        this.activeProviderName = 'none';
+        this.isAvailable = false;
+        this.logger.log(
+          'ℹ️ Classificador System-One desativado (provider=none).',
+        );
+        return;
+      }
+
       default: {
         this.logger.warn(
           '⚠️ Nenhum provider de classificação configurado (defina OPEN_ROUTER_API_KEY, GROQ_API_KEY, GEMINI_API_KEY ou CLASSIFIER_PROVIDER).',

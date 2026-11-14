@@ -32,7 +32,7 @@ export const glassdoorProvider: IProviderConfig = {
   },
 };
 
-export function createGlassdoorProvider(
+export function glassdoor(
   overrides?: Partial<IProviderConfig>,
 ): IProviderConfig {
   return {
@@ -44,3 +44,5 @@ export function createGlassdoorProvider(
     },
   };
 }
+
+export const createGlassdoorProvider = glassdoor;

@@ -18,10 +18,19 @@ import {
 } from '../../interfaces/cv/cv.interface';
 
 export interface CvEngineOptions {
+  /** Path to `cv.base.yaml` OR inline `BaseCvData` object. */
+  baseCv?: string | BaseCvData;
+  /** Alias for `baseCv` path. */
   baseCvPath?: string;
-  baseCv?: BaseCvData;
+  /** LLM API key (e.g. OpenRouter). */
+  apiKey?: string;
+  /** Alias for `apiKey`. */
   openRouterApiKey?: string;
+  /** Model identifier (default: `openrouter/free`). */
+  model?: string;
+  /** Alias for `model`. */
   openRouterModel?: string;
+  /** Default directory when saving PDFs to disk. */
   outputDir?: string;
 }
 
@@ -31,17 +40,26 @@ export interface StandaloneCvOptimizationResult extends CvOptimizationResult {
 
 /**
  * Pure SDK Factory (`@lioapply/cv`): Creates a standalone ATS CV optimization engine
- * that can be used in any script or MCP server without requiring NestJS DI or WhatsApp/Postgres.
+ * that can be injected into `createLioApply({ cv: typstCvEngine(...) })` or used standalone.
  */
-export function createCvEngine(options?: CvEngineOptions) {
-  if (options?.openRouterApiKey) {
-    process.env.OPEN_ROUTER_API_KEY = options.openRouterApiKey;
+export function typstCvEngine(options?: CvEngineOptions) {
+  const apiKey = options?.apiKey || options?.openRouterApiKey;
+  const model = options?.model || options?.openRouterModel;
+  const inlineBaseCv =
+    options?.baseCv && typeof options.baseCv === 'object'
+      ? options.baseCv
+      : undefined;
+  const baseCvPath =
+    typeof options?.baseCv === 'string' ? options.baseCv : options?.baseCvPath;
+
+  if (apiKey) {
+    process.env.OPEN_ROUTER_API_KEY = apiKey;
   }
-  if (options?.openRouterModel) {
-    process.env.OPENROUTER_MODEL = options.openRouterModel;
+  if (model) {
+    process.env.OPENROUTER_MODEL = model;
   }
-  if (options?.baseCvPath) {
-    process.env.CV_BASE_PATH = options.baseCvPath;
+  if (baseCvPath) {
+    process.env.CV_BASE_PATH = baseCvPath;
   }
 
   const configService = new JobConfigService();
@@ -60,7 +78,7 @@ export function createCvEngine(options?: CvEngineOptions) {
 
   return {
     getBaseCv(): BaseCvData {
-      return options?.baseCv || configService.getBaseCv();
+      return inlineBaseCv || configService.getBaseCv();
     },
 
     async optimizeForJob(jobInfo: {
@@ -138,6 +156,8 @@ export function createCvEngine(options?: CvEngineOptions) {
     },
   };
 }
+
+export const createCvEngine = typstCvEngine;
 
 @Module({})
 export class LioApplyCvModule {
