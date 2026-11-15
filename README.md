@@ -1,3 +1,7 @@
+<p align="center">
+  <img width="1600" height="400" alt="readme-banner" src="https://github.com/user-attachments/assets/39cac228-a045-4346-ace1-72122fc7ab49" />
+</p>
+
 # 🦁 LioApply
 
 **LioApply** é uma plataforma **100% Open-Source e gratuita** desenvolvida em **NestJS** para automatizar a busca de vagas de engenharia de software, filtragem semântica inteligente (**System-One Multi-Provider Classifier**) e **geração sob demanda de currículos otimizados para ATS em PDF (via Typst)** diretamente no seu **WhatsApp**.
