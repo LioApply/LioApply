@@ -165,13 +165,23 @@ export class ClassifierService implements OnModuleInit {
     }
 
     const results: JobEvaluationResult[] = [];
+    const totalBatches = Math.ceil(jobs.length / batchSize);
     for (let i = 0; i < jobs.length; i += batchSize) {
       const chunk = jobs.slice(i, i + batchSize);
+      const batchNum = Math.floor(i / batchSize) + 1;
+      this.logger.log(
+        `📤 Enviando lote ${batchNum}/${totalBatches} (${chunk.length} vagas) para ${this.activeProviderName}...`,
+      );
       try {
         const evaluations = await evaluateJobsBatchWithSystemOne(
           client,
           chunk,
           profile,
+        );
+        const approvedCount = evaluations.filter((e) => e.shouldApply).length;
+        const maxScore = Math.max(0, ...evaluations.map((e) => e.score));
+        this.logger.log(
+          `📥 Resposta de ${this.activeProviderName} (lote ${batchNum}/${totalBatches}): ${approvedCount}/${chunk.length} aprovadas (maior score: ${maxScore}%).`,
         );
         results.push(
           ...evaluations.map(({ shouldApply, score, reason }) => ({

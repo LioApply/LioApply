@@ -90,6 +90,10 @@ export async function runScrapeAndDeduplicate(
     uniqueCandidates.push(normalized);
   }
 
+  deps.logger?.log(
+    `🔎 [LioApplyCore] ${rawPosts.length} vagas coletadas → ${uniqueCandidates.length} inéditas após deduplicação.`,
+  );
+
   return {
     rawCount: rawPosts.length,
     uniqueCandidates,
@@ -103,7 +107,8 @@ export async function runClassifyCandidates(
 ): Promise<ApprovedCandidateJobDto[]> {
   if (candidates.length === 0) return [];
 
-  if (deps.classifierService.getActiveProviderName() === 'none') {
+  const providerName = deps.classifierService.getActiveProviderName();
+  if (providerName === 'none') {
     return candidates.map((candidate) => ({
       title: candidate.title,
       company: candidate.company,
@@ -116,7 +121,7 @@ export async function runClassifyCandidates(
   }
 
   deps.logger?.log(
-    `🧠 [LioApplyCore] Classificando ${candidates.length} vagas inéditas em lote...`,
+    `🧠 [LioApplyCore] Classificando ${candidates.length} vagas inéditas via ${providerName}...`,
   );
 
   const profile = resolveUserProfile(
