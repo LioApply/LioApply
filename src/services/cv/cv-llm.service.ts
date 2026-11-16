@@ -63,8 +63,8 @@ export class CvLlmService {
 
     const config = provider.resolveChatConfig({
       apiKey: process.env.CV_API_KEY,
-      model: cvConfig.model || (targetId === 'openrouter' ? cvConfig.openRouterModel : undefined),
-      baseUrl: cvConfig.baseUrl,
+      model: process.env.CV_MODEL || cvConfig.model,
+      baseUrl: process.env.CV_BASE_URL || cvConfig.baseUrl,
     });
     if (requested === 'openai-compatible' || (requested === 'auto' && targetId === 'ollama' && process.env.CV_BASE_URL)) {
       config.provider = 'openai-compatible';

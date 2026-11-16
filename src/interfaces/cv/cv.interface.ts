@@ -101,6 +101,5 @@ export interface CvOptimizationConfig {
   provider?: CvLlmProviderType;
   model?: string;
   baseUrl?: string;
-  openRouterModel: string;
   baseCvPath: string;
 }

@@ -82,6 +82,8 @@ profile:
     - "São Paulo"
 
 # Configurações de Otimização de Currículo (Sob Demanda)
+# Provedor de LLM (openrouter | groq | gemini | ollama | openai-compatible | auto)
 cvOptimization:
-  openRouterModel: "openrouter/free"
+  provider: "auto"
+  model: "openrouter/free"
   baseCvPath: "./cv.base.yaml"

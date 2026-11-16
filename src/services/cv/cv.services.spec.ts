@@ -73,7 +73,7 @@ describe('CV Optimization Pipeline Services', () => {
     it('should strip <think> blocks and markdown fences and preserve original company/dates', () => {
       const mockConfigService = {
         getCvOptimizationConfig: jest.fn().mockReturnValue({
-          openRouterModel: 'openrouter/free',
+          model: 'openrouter/free',
           baseCvPath: './cv.base.yaml',
         }),
       } as unknown as CvConfigService;
@@ -239,11 +239,11 @@ describe('CV Optimization Pipeline Services', () => {
     });
 
     it('resolves groq, gemini, ollama, and openrouter providers and rejects jev', () => {
-      const makeService = (provider?: any) =>
+      const makeService = (provider?: any, model?: string) =>
         new CvLlmService({
           getCvOptimizationConfig: jest.fn().mockReturnValue({
             provider: provider ?? 'auto',
-            openRouterModel: 'openrouter/free',
+            model,
             baseCvPath: './cv.base.yaml',
           }),
         } as unknown as CvConfigService);
@@ -274,6 +274,31 @@ describe('CV Optimization Pipeline Services', () => {
       expect(() => makeService('jev').resolveLlmProvider()).toThrow(
         /System-One/,
       );
+    });
+
+    it('reads cvOptimization provider, model, and baseUrl from JobConfigService like classifier', () => {
+      const cfgService = new CvConfigService({
+        getConfig: () => ({
+          cvOptimization: {
+            provider: 'groq',
+            model: 'llama-3.3-70b-versatile',
+            baseUrl: 'https://custom.groq.local/v1',
+          },
+        }),
+      } as any);
+
+      expect(cfgService.getCvOptimizationConfig()).toMatchObject({
+        provider: 'groq',
+        model: 'llama-3.3-70b-versatile',
+        baseUrl: 'https://custom.groq.local/v1',
+      });
+
+      const defaultCfgService = new CvConfigService();
+      expect(defaultCfgService.getCvOptimizationConfig()).toMatchObject({
+        provider: 'auto',
+        model: undefined,
+        baseUrl: undefined,
+      });
     });
   });
 });

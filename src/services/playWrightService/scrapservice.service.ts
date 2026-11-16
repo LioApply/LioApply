@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as cheerio from 'cheerio';
-import { Browser, BrowserContext, chromium } from 'playwright';
+import { Browser, BrowserContext, chromium, Page } from 'playwright';
 import { ILocationOption, IProviderConfig, Isearch } from '../../interfaces/isearch/isearch.interface';
 import { ScrapedPost } from '../../interfaces/ScrapedPost/iscrapedpost.interface';
 
@@ -116,23 +116,34 @@ export class PlaywrightService {
       this.logger.log(`[${provider.name}] (${locOption.label || 'Busca'}) Navegando para: ${searchUrl}`);
 
       await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
-      await page.evaluate(() => window.scrollBy(0, 300));
+      await this.safeScroll(page, 300);
 
       try {
         await page.waitForSelector(provider.selectors.waitSelector, { timeout: 15000 });
       } catch {
-        await page.evaluate(() => window.scrollBy(0, 500));
+        await this.safeScroll(page, 500);
         this.logger.warn(
           `Aviso: Seletor '${provider.selectors.waitSelector}' não apareceu a tempo para [${provider.name} | ${query} | ${locOption.label || 'Busca'}]`,
         );
       }
 
+      await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => undefined);
       return this.parseHtml(await page.content(), provider, locOption.label);
     } catch (err) {
       this.logger.error(`Erro no scrape da combinação [${provider.name} | ${query}]:`, err);
       return [];
     } finally {
       await page.close();
+    }
+  }
+
+  private async safeScroll(page: Page, deltaY: number): Promise<void> {
+    try {
+      await page.evaluate((y) => window.scrollBy(0, y), deltaY);
+    } catch (err) {
+      if (!String((err as Error)?.message ?? err).includes('Execution context was destroyed')) throw err;
+      await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => undefined);
+      await page.evaluate((y) => window.scrollBy(0, y), deltaY).catch(() => undefined);
     }
   }
 
