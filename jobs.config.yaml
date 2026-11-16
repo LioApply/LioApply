@@ -22,10 +22,11 @@ search:
       locationQuery: "trabalho-remoto"
 
     - provider: "glassdoor"
-      label: "Curitiba (Presencial/Híbrido)"
+      label: "Curitiba (Presencial/Híbrido"
       workplaceTypes:
         - "onsite"
         - "hybrid"
+        - "remote"
       locationQuery: "curitiba-brasil"
       providerParams:
         glassdoorLocationId: "2387909"
@@ -83,9 +84,9 @@ profile:
 
 # Provedor do Classificador Semântico System-One (openrouter | groq | gemini | ollama | jev | auto)
 classifier:
-  provider: "auto"
+  provider: "jev"
 
 # Configurações de Otimização de Currículo (Sob Demanda)
 cvOptimization:
-  openRouterModel: "openrouter/free"
+  provider: "groq"
   baseCvPath: "./cv.base.yaml"
