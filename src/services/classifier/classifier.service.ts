@@ -46,7 +46,7 @@ export class ClassifierService implements OnModuleInit {
     this.activeProviderName = 'none';
 
     const yaml = this.configService?.getClassifierConfig?.();
-    const requested = (yaml?.provider || 'auto')
+    const requested = (process.env.CLASSIFIER_PROVIDER || yaml?.provider || 'auto')
       .trim()
       .toLowerCase() as ClassifierProviderType;
     const id = this.resolveProviderId(requested);
