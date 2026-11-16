@@ -4,6 +4,28 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: jobsearchbot-api
+    env_file:
+      - .env
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://postgres:PASSWORD@postgres:5432/postgres
+      - evolutionApiUrl=http://evolution-api:8080
+      - EVOLUTION_API_URL=http://evolution-api:8080
+    restart: "no"
+    volumes:
+      - ./jobs.config.yaml:/usr/src/app/jobs.config.yaml:ro
+    networks:
+      - evolution-net
+    depends_on:
+      evolution-api:
+        condition: service_healthy
+
+  webhook:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jobsearchbot-webhook
+    command: ["node", "dist/main", "--listen"]
     ports:
       - "3000:3000"
     env_file:
@@ -13,7 +35,8 @@ services:
       - DATABASE_URL=postgresql://postgres:PASSWORD@postgres:5432/postgres
       - evolutionApiUrl=http://evolution-api:8080
       - EVOLUTION_API_URL=http://evolution-api:8080
-    restart: "no"
+      - WEBHOOK_PUBLIC_URL=http://webhook:3000/webhook/evolution
+    restart: always
     volumes:
       - ./jobs.config.yaml:/usr/src/app/jobs.config.yaml:ro
     networks:

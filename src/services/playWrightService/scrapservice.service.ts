@@ -128,7 +128,7 @@ export class PlaywrightService {
       }
 
       await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => undefined);
-      return this.parseHtml(await page.content(), provider, locOption.label);
+      return this.parseHtml(await this.safeContent(page), provider, locOption.label);
     } catch (err) {
       this.logger.error(`Erro no scrape da combinação [${provider.name} | ${query}]:`, err);
       return [];
@@ -145,6 +145,24 @@ export class PlaywrightService {
       await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => undefined);
       await page.evaluate((y) => window.scrollBy(0, y), deltaY).catch(() => undefined);
     }
+  }
+
+  private async safeContent(page: Page, attempts = 3): Promise<string> {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await page.content();
+      } catch (err) {
+        const msg = String((err as Error)?.message ?? err);
+        const isNavigating =
+          msg.includes('page is navigating') || msg.includes('Execution context was destroyed');
+        if (!isNavigating || i === attempts - 1) throw err;
+        await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => undefined);
+        if (typeof page.waitForTimeout === 'function') {
+          await page.waitForTimeout(300).catch(() => undefined);
+        }
+      }
+    }
+    return page.content();
   }
 
   parseHtml(html: string, provider: IProviderConfig, locationLabel?: string): ScrapedPost[] {

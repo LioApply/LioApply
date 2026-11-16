@@ -112,4 +112,45 @@ describe('PlaywrightService', () => {
     expect(jobs).toHaveLength(1);
     expect(jobs[0].title).toBe('Backend Node.js');
   });
+
+  it('recovers when page.content fails because the page is still navigating', async () => {
+    const html = `
+      <ul>
+        <li>
+          <h3 class="base-search-card__title">Full-Stack Pleno</h3>
+          <h4 class="base-search-card__subtitle">Acme</h4>
+          <a class="base-card__full-link" href="https://www.linkedin.com/jobs/view/1000">Ver</a>
+        </li>
+      </ul>
+    `;
+    const mockPage = {
+      goto: jest.fn().mockResolvedValue(undefined),
+      evaluate: jest.fn().mockResolvedValue(undefined),
+      waitForLoadState: jest.fn().mockResolvedValue(undefined),
+      waitForSelector: jest.fn().mockResolvedValue(undefined),
+      waitForTimeout: jest.fn().mockResolvedValue(undefined),
+      content: jest
+        .fn()
+        .mockRejectedValueOnce(
+          new Error('page.content: Unable to retrieve content because the page is navigating and changing the content.'),
+        )
+        .mockResolvedValueOnce(html),
+      close: jest.fn().mockResolvedValue(undefined),
+    };
+    const mockContext = {
+      newPage: jest.fn().mockResolvedValue(mockPage),
+    };
+
+    const jobs = await (service as any).scrapeSingleTask(mockContext, {
+      provider: linkedinProvider,
+      query: 'desenvolvedor full-stack pleno',
+      locOption: { label: 'Remoto', workplaceTypes: ['remote'] },
+    });
+
+    expect(mockPage.content).toHaveBeenCalledTimes(2);
+    expect(mockPage.waitForLoadState).toHaveBeenCalledWith('domcontentloaded', { timeout: 10000 });
+    expect(mockPage.close).toHaveBeenCalledTimes(1);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].title).toBe('Full-Stack Pleno');
+  });
 });
