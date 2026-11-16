@@ -251,7 +251,7 @@ describe('CV Optimization Pipeline Services', () => {
       process.env.GROQ_API_KEY = 'gsk-test';
       expect(makeService('groq').resolveLlmProvider()).toMatchObject({
         provider: 'groq',
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
       });
 
       process.env.GEMINI_API_KEY = 'gem-test';
@@ -281,7 +281,7 @@ describe('CV Optimization Pipeline Services', () => {
         getConfig: () => ({
           cvOptimization: {
             provider: 'groq',
-            model: 'llama-3.3-70b-versatile',
+            model: 'openai/gpt-oss-120b',
             baseUrl: 'https://custom.groq.local/v1',
           },
         }),
@@ -289,7 +289,7 @@ describe('CV Optimization Pipeline Services', () => {
 
       expect(cfgService.getCvOptimizationConfig()).toMatchObject({
         provider: 'groq',
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         baseUrl: 'https://custom.groq.local/v1',
       });
 
