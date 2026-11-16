@@ -6,7 +6,7 @@ import {
   findExistingFile,
   parseYamlObject,
 } from '../../config/yaml-config.loader';
-import { BaseCvData, CvOptimizationConfig } from '../../interfaces/cv/cv.interface';
+import { BaseCvData, CvLlmProviderType, CvOptimizationConfig } from '../../interfaces/cv/cv.interface';
 
 @Injectable()
 export class CvConfigService {
@@ -25,10 +25,12 @@ export class CvConfigService {
       yamlCv = undefined;
     }
 
+    const envProvider = process.env.CV_PROVIDER?.trim() as CvLlmProviderType | undefined;
+
     return {
-      provider: yamlCv?.provider || 'auto',
-      model: yamlCv?.model,
-      baseUrl: yamlCv?.baseUrl,
+      provider: envProvider || yamlCv?.provider || 'auto',
+      model: process.env.CV_MODEL?.trim() || yamlCv?.model,
+      baseUrl: process.env.CV_BASE_URL?.trim() || yamlCv?.baseUrl,
       baseCvPath: process.env.CV_BASE_PATH || yamlCv?.baseCvPath || path.resolve(process.cwd(), 'cv.base.yaml'),
     };
   }

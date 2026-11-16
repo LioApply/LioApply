@@ -299,6 +299,15 @@ describe('CV Optimization Pipeline Services', () => {
         model: undefined,
         baseUrl: undefined,
       });
+
+      process.env.CV_PROVIDER = 'openrouter';
+      process.env.CV_MODEL = 'openrouter/free';
+      process.env.CV_BASE_URL = 'https://custom.or.local/v1';
+      expect(cfgService.getCvOptimizationConfig()).toMatchObject({
+        provider: 'openrouter',
+        model: 'openrouter/free',
+        baseUrl: 'https://custom.or.local/v1',
+      });
     });
   });
 });
