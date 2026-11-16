@@ -1,12 +1,8 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { JobConfigService } from '../../config/job-config.service';
 import { ClassifierProvider } from '../../interfaces/classifier/classifier.interface';
 import { JobCandidateInput } from '../../interfaces/JobCandidateInput/IjobcandidateInput';
-import {
-  BaseCvData,
-  CvTailoredPatchDto,
-  TailoredCvEvaluation,
-} from '../../interfaces/cv/cv.interface';
+import { BaseCvData, CvTailoredPatchDto, TailoredCvEvaluation } from '../../interfaces/cv/cv.interface';
 import {
   evaluateJobFitWithJev,
   evaluateJobsBatchWithSystemOne,
@@ -14,10 +10,7 @@ import {
   SystemOneClient,
   UserProfileCriteria,
 } from '../../utils/jev';
-import {
-  ClassifierProviderConfig,
-  ClassifierProviderType,
-} from './classifier-clients';
+import { ClassifierProviderType } from './classifier-clients';
 import { CLASSIFIER_PROVIDER_CLASSES, CLASSIFIER_PROVIDERS } from './providers';
 
 export interface JobEvaluationResult {
@@ -26,18 +19,13 @@ export interface JobEvaluationResult {
   reason: string;
 }
 
-/** Ordem da auto-detecção quando `provider: auto`. */
-const AUTO_PRIORITY: ClassifierProviderType[] = [
-  'groq',
-  'gemini',
-  'openrouter',
-  'jev',
-];
+const AUTO_PRIORITY: ClassifierProviderType[] = ['groq', 'gemini', 'openrouter', 'jev'];
+const unconfiguredResult = (reason = 'Classificador não configurado (chave ausente).'): JobEvaluationResult => ({
+  shouldApply: false,
+  score: 0,
+  reason,
+});
 
-/**
- * Lê o `classifier` do jobs.config.yaml / .env e direciona a avaliação
- * para o provider escolhido (Groq, Gemini, OpenRouter, Ollama, Jev).
- */
 @Injectable()
 export class ClassifierService implements OnModuleInit {
   private readonly logger = new Logger(ClassifierService.name);
@@ -45,9 +33,8 @@ export class ClassifierService implements OnModuleInit {
   private activeProviderName = 'none';
 
   constructor(
-    private readonly configService: JobConfigService,
-    @Inject(CLASSIFIER_PROVIDERS)
-    private readonly providers: ClassifierProvider[],
+    @Optional() private readonly configService: JobConfigService | undefined,
+    @Inject(CLASSIFIER_PROVIDERS) private readonly providers: ClassifierProvider[],
   ) {}
 
   onModuleInit() {
@@ -58,8 +45,8 @@ export class ClassifierService implements OnModuleInit {
     this.client = null;
     this.activeProviderName = 'none';
 
-    const yaml = this.configService.getClassifierConfig?.();
-    const requested = (process.env.CLASSIFIER_PROVIDER || yaml?.provider || 'auto')
+    const yaml = this.configService?.getClassifierConfig?.();
+    const requested = (yaml?.provider || 'auto')
       .trim()
       .toLowerCase() as ClassifierProviderType;
     const id = this.resolveProviderId(requested);
@@ -74,38 +61,26 @@ export class ClassifierService implements OnModuleInit {
       return;
     }
 
-    const config: ClassifierProviderConfig = {
+    const resolution = provider.createClient({
       provider: id,
       apiKey: process.env.CLASSIFIER_API_KEY,
       model: process.env.CLASSIFIER_MODEL || yaml?.model,
       baseUrl: process.env.CLASSIFIER_BASE_URL || yaml?.baseUrl,
-    };
-    const resolution = provider.createClient(config);
+    });
     if (!resolution) return;
 
     this.client = resolution.client;
     this.activeProviderName = resolution.name;
-    this.logger.log(
-      `✅ Classificador System-One inicializado com provider: ${resolution.name}`,
-    );
+    this.logger.log(`✅ Classificador System-One inicializado com provider: ${resolution.name}`);
   }
 
-  private resolveProviderId(
-    requested: ClassifierProviderType,
-  ): ClassifierProviderType {
-    if (requested !== 'auto') {
-      return requested === 'systemone' ? 'jev' : requested;
-    }
-    const detected = AUTO_PRIORITY.find((id) =>
-      this.providers.find((p) => p.id === id)?.isConfigured(),
-    );
-    if (detected) return detected;
-    return process.env.CLASSIFIER_BASE_URL ? 'ollama' : 'none';
+  private resolveProviderId(requested: ClassifierProviderType): ClassifierProviderType {
+    if (requested !== 'auto') return requested === 'systemone' ? 'jev' : requested;
+    const detected = AUTO_PRIORITY.find((id) => this.providers.find((p) => p.id === id)?.isConfigured());
+    return detected || (process.env.CLASSIFIER_BASE_URL ? 'ollama' : 'none');
   }
 
-  getActiveProviderName(): string {
-    return this.activeProviderName;
-  }
+  getActiveProviderName = (): string => this.activeProviderName;
 
   setClientForTesting(client: SystemOneClient, name = 'test'): void {
     this.client = client;
@@ -117,86 +92,48 @@ export class ClassifierService implements OnModuleInit {
     return this.client;
   }
 
-  async evaluateJob(
-    job: JobCandidateInput,
-    profile: UserProfileCriteria,
-  ): Promise<JobEvaluationResult> {
+  async evaluateJob(job: JobCandidateInput, profile: UserProfileCriteria): Promise<JobEvaluationResult> {
     const client = this.ensureClient();
-    if (!client) {
-      return {
-        shouldApply: false,
-        score: 0,
-        reason: 'Classificador não configurado (chave ausente).',
-      };
-    }
+    if (!client) return unconfiguredResult();
+
     try {
-      const { shouldApply, score, reason } = await evaluateJobFitWithJev(
-        client,
-        job,
-        profile,
-      );
+      const { shouldApply, score, reason } = await evaluateJobFitWithJev(client, job, profile);
       return { shouldApply, score, reason };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(
-        `Erro ao avaliar vaga com o classificador (${this.activeProviderName}): ${message}`,
-      );
-      return {
-        shouldApply: false,
-        score: 0,
-        reason: `Erro na avaliação com o classificador: ${message}`,
-      };
+      this.logger.error(`Erro ao avaliar vaga com o classificador (${this.activeProviderName}): ${message}`);
+      return unconfiguredResult(`Erro na avaliação com o classificador: ${message}`);
     }
   }
 
-  /** Avalia em lotes (uma chamada por `batchSize` vagas); cai para avaliação individual se o lote falhar. */
   async evaluateJobsBatch(
     jobs: JobCandidateInput[],
     profile: UserProfileCriteria,
     batchSize = 10,
   ): Promise<JobEvaluationResult[]> {
     const client = this.ensureClient();
-    if (!client) {
-      return jobs.map(() => ({
-        shouldApply: false,
-        score: 0,
-        reason: 'Classificador não configurado (chave ausente).',
-      }));
-    }
+    if (!client) return jobs.map(() => unconfiguredResult());
 
     const results: JobEvaluationResult[] = [];
     const totalBatches = Math.ceil(jobs.length / batchSize);
+
     for (let i = 0; i < jobs.length; i += batchSize) {
       const chunk = jobs.slice(i, i + batchSize);
       const batchNum = Math.floor(i / batchSize) + 1;
-      this.logger.log(
-        `📤 Enviando lote ${batchNum}/${totalBatches} (${chunk.length} vagas) para ${this.activeProviderName}...`,
-      );
+      this.logger.log(`📤 Enviando lote ${batchNum}/${totalBatches} (${chunk.length} vagas) para ${this.activeProviderName}...`);
       try {
-        const evaluations = await evaluateJobsBatchWithSystemOne(
-          client,
-          chunk,
-          profile,
-        );
+        const evaluations = await evaluateJobsBatchWithSystemOne(client, chunk, profile);
         const approvedCount = evaluations.filter((e) => e.shouldApply).length;
         const maxScore = Math.max(0, ...evaluations.map((e) => e.score));
         this.logger.log(
           `📥 Resposta de ${this.activeProviderName} (lote ${batchNum}/${totalBatches}): ${approvedCount}/${chunk.length} aprovadas (maior score: ${maxScore}%).`,
         );
-        results.push(
-          ...evaluations.map(({ shouldApply, score, reason }) => ({
-            shouldApply,
-            score,
-            reason,
-          })),
-        );
+        results.push(...evaluations.map(({ shouldApply, score, reason }) => ({ shouldApply, score, reason })));
       } catch (error) {
         this.logger.warn(
           `Falha no lote (${chunk.length} vagas), avaliando individualmente: ${error instanceof Error ? error.message : String(error)}`,
         );
-        for (const job of chunk) {
-          results.push(await this.evaluateJob(job, profile));
-        }
+        for (const job of chunk) results.push(await this.evaluateJob(job, profile));
       }
     }
     return results;
@@ -209,21 +146,13 @@ export class ClassifierService implements OnModuleInit {
   ): Promise<TailoredCvEvaluation> {
     const client = this.ensureClient();
     if (!client) {
-      return {
-        isCredible: true,
-        credibilityProbability: 1,
-        atsScore: 85,
-        summaryReason: 'Currículo adaptado para ATS.',
-      };
+      return { isCredible: true, credibilityProbability: 1, atsScore: 85, summaryReason: 'Currículo adaptado para ATS.' };
     }
     return evaluateTailoredCvWithJev(client, baseCv, tailoredPatch, jobInfo);
   }
 }
 
-/** Instancia o classificador fora do container Nest (SDK `createLioApply` / `createCvEngine`). */
-export function createClassifierService(
-  configService: JobConfigService,
-): ClassifierService {
+export function createClassifierService(configService?: JobConfigService): ClassifierService {
   const service = new ClassifierService(
     configService,
     CLASSIFIER_PROVIDER_CLASSES.map((Provider) => new Provider()),

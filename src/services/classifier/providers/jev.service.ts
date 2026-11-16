@@ -4,6 +4,7 @@ import { SystemOneProvider } from './base.provider';
 @Injectable()
 export class JevService extends SystemOneProvider {
   readonly id = 'jev';
+  readonly supportsChat = false;
   protected readonly defaults = {
     label: 'SystemOne (jev)',
     baseUrl: 'https://api.typesafe.ai/v1/systemone',

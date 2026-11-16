@@ -1,10 +1,6 @@
 import * as path from 'path';
 import * as readline from 'readline';
-import {
-  LioApplyOptions,
-  NormalizedCandidateJob,
-  createLioApply,
-} from '../core';
+import { LioApplyOptions, NormalizedCandidateJob, createLioApply } from '../core';
 import { typstCvEngine } from '../cv';
 
 export interface McpToolDefinition {
@@ -24,12 +20,30 @@ export interface JsonRpcResponse {
   jsonrpc: '2.0';
   id: string | number | null;
   result?: unknown;
-  error?: {
-    code: number;
-    message: string;
-    data?: unknown;
-  };
+  error?: { code: number; message: string; data?: unknown };
 }
+
+const CANDIDATES_INPUT_SCHEMA = {
+  type: 'object',
+  properties: {
+    candidates: {
+      type: 'array',
+      description: 'List of candidate jobs returned by lioapply_search_jobs.',
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          company: { type: 'string' },
+          text: { type: 'string' },
+          location: { type: 'string' },
+          url: { type: 'string' },
+        },
+        required: ['title', 'text', 'url'],
+      },
+    },
+  },
+  required: ['candidates'],
+};
 
 export const LIOAPPLY_MCP_TOOLS: McpToolDefinition[] = [
   {
@@ -39,75 +53,22 @@ export const LIOAPPLY_MCP_TOOLS: McpToolDefinition[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        queries: {
-          type: 'array',
-          items: { type: 'string' },
-          description:
-            'Optional search queries override (defaults to jobs.config.yaml).',
-        },
-        providers: {
-          type: 'array',
-          items: {
-            type: 'string',
-            enum: ['linkedin', 'glassdoor', 'remotar'],
-          },
-          description:
-            'Optional list of providers to run (defaults to all enabled providers).',
-        },
+        queries: { type: 'array', items: { type: 'string' }, description: 'Optional search queries override (defaults to jobs.config.yaml).' },
+        providers: { type: 'array', items: { type: 'string', enum: ['linkedin', 'glassdoor', 'remotar'] }, description: 'Optional list of providers to run.' },
       },
     },
   },
   {
     name: 'lioapply_get_classification_rubric',
     description:
-      'Returns the System-One { state, questions, thresholds } Noul rubric and user profile criteria so the host MCP AI agent can classify candidate jobs directly without external API calls.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        candidates: {
-          type: 'array',
-          description:
-            'List of candidate jobs returned by lioapply_search_jobs.',
-          items: {
-            type: 'object',
-            properties: {
-              title: { type: 'string' },
-              company: { type: 'string' },
-              text: { type: 'string' },
-              location: { type: 'string' },
-              url: { type: 'string' },
-            },
-            required: ['title', 'text', 'url'],
-          },
-        },
-      },
-      required: ['candidates'],
-    },
+      'Returns the System-One { state, questions, thresholds } Noul rubric and user profile criteria for host classification without external API calls.',
+    inputSchema: CANDIDATES_INPUT_SCHEMA,
   },
   {
     name: 'lioapply_classify_jobs',
     description:
       'Evaluates candidate jobs in batch using the configured System-One Multi-Provider classifier (openrouter, groq, gemini, ollama, or jev).',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        candidates: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              title: { type: 'string' },
-              company: { type: 'string' },
-              text: { type: 'string' },
-              location: { type: 'string' },
-              url: { type: 'string' },
-            },
-            required: ['title', 'text', 'url'],
-          },
-        },
-      },
-      required: ['candidates'],
-    },
+    inputSchema: CANDIDATES_INPUT_SCHEMA,
   },
   {
     name: 'lioapply_optimize_cv',
@@ -116,95 +77,48 @@ export const LIOAPPLY_MCP_TOOLS: McpToolDefinition[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        title: {
-          type: 'string',
-          description: 'Target job title.',
-        },
-        company: {
-          type: 'string',
-          description: 'Target company name (optional).',
-        },
-        description: {
-          type: 'string',
-          description: 'Full job description or requirements.',
-        },
-        outputPath: {
-          type: 'string',
-          description:
-            'Optional output file path for the generated PDF (defaults to ./result/<fileName>).',
-        },
+        title: { type: 'string', description: 'Target job title.' },
+        company: { type: 'string', description: 'Target company name (optional).' },
+        description: { type: 'string', description: 'Full job description or requirements.' },
+        outputPath: { type: 'string', description: 'Optional output file path for the generated PDF (defaults to ./result/<fileName>).' },
       },
       required: ['title', 'description'],
     },
   },
 ];
 
-/**
- * `@lioapply/mcp`: Official MCP Server injecting `@lioapply/core`, `@lioapply/providers`, and `@lioapply/cv`.
- */
+const textResult = (data: unknown) => ({
+  content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }],
+});
+
+/** `@lioapply/mcp`: Official MCP Server over `@lioapply/core`, `@lioapply/providers`, and `@lioapply/cv`. */
 export function createLioApplyMcpServer(options?: LioApplyOptions) {
   const lio = createLioApply({
     ...options,
-    cv:
-      options?.cv ||
-      typstCvEngine({
-        outputDir: path.resolve(process.cwd(), 'result'),
-      }),
+    cv: options?.cv || typstCvEngine({ outputDir: path.resolve(process.cwd(), 'result') }),
   });
 
   return {
     lio,
-
-    listTools(): McpToolDefinition[] {
-      return LIOAPPLY_MCP_TOOLS;
-    },
+    listTools: (): McpToolDefinition[] => LIOAPPLY_MCP_TOOLS,
 
     async callTool(name: string, args: Record<string, any> = {}) {
+      const candidates = (args.candidates || []) as NormalizedCandidateJob[];
+
       switch (name) {
-        case 'lioapply_search_jobs': {
-          const result = await lio.scrapeJobs({
-            queries: Array.isArray(args.queries) ? args.queries : undefined,
-            providers: Array.isArray(args.providers)
-              ? args.providers
-              : undefined,
-          });
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(result, null, 2),
-              },
-            ],
-          };
-        }
+        case 'lioapply_search_jobs':
+          return textResult(
+            await lio.scrapeJobs({
+              queries: Array.isArray(args.queries) ? args.queries : undefined,
+              providers: Array.isArray(args.providers) ? args.providers : undefined,
+            }),
+          );
 
-        case 'lioapply_get_classification_rubric': {
-          const candidates = (args.candidates ||
-            []) as NormalizedCandidateJob[];
-          const rubric = lio.buildSystemOneClassificationState(candidates);
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(rubric, null, 2),
-              },
-            ],
-          };
-        }
+        case 'lioapply_get_classification_rubric':
+          return textResult(lio.buildSystemOneClassificationState(candidates));
 
-        case 'lioapply_classify_jobs': {
-          const candidates = (args.candidates ||
-            []) as NormalizedCandidateJob[];
-          const approvedJobs = await lio.classifyJobs(candidates);
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({ approvedJobs }, null, 2),
-              },
-            ],
-          };
-        }
+        case 'lioapply_classify_jobs':
+          return textResult({ approvedJobs: await lio.classifyJobs(candidates) });
 
         case 'lioapply_optimize_cv': {
           const res = await lio.optimizeCv({
@@ -213,24 +127,12 @@ export function createLioApplyMcpServer(options?: LioApplyOptions) {
             description: String(args.description || ''),
             outputPath: args.outputPath ? String(args.outputPath) : undefined,
           });
-
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify(
-                  {
-                    fileName: res.fileName,
-                    savedFilePath: res.savedFilePath,
-                    pdfSizeBytes: res.pdfBuffer.length,
-                    evaluation: res.evaluation,
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-          };
+          return textResult({
+            fileName: res.fileName,
+            savedFilePath: res.savedFilePath,
+            pdfSizeBytes: res.pdfBuffer.length,
+            evaluation: res.evaluation,
+          });
         }
 
         default:
@@ -238,105 +140,49 @@ export function createLioApplyMcpServer(options?: LioApplyOptions) {
       }
     },
 
-    async handleJsonRpcRequest(
-      request: JsonRpcRequest,
-    ): Promise<JsonRpcResponse | null> {
-      if (request.id === undefined) {
-        return null;
-      }
+    async handleJsonRpcRequest(request: JsonRpcRequest): Promise<JsonRpcResponse | null> {
+      if (request.id === undefined) return null;
+
+      const ok = (result: unknown): JsonRpcResponse => ({ jsonrpc: '2.0', id: request.id!, result });
+      const fail = (code: number, message: string): JsonRpcResponse => ({
+        jsonrpc: '2.0',
+        id: request.id!,
+        error: { code, message },
+      });
 
       try {
         switch (request.method) {
           case 'initialize':
-            return {
-              jsonrpc: '2.0',
-              id: request.id,
-              result: {
-                protocolVersion: '2024-11-05',
-                capabilities: {
-                  tools: {},
-                },
-                serverInfo: {
-                  name: '@lioapply/mcp',
-                  version: '1.0.0',
-                },
-              },
-            };
-
+            return ok({
+              protocolVersion: '2024-11-05',
+              capabilities: { tools: {} },
+              serverInfo: { name: '@lioapply/mcp', version: '1.0.0' },
+            });
           case 'ping':
-            return {
-              jsonrpc: '2.0',
-              id: request.id,
-              result: {},
-            };
-
+            return ok({});
           case 'tools/list':
-            return {
-              jsonrpc: '2.0',
-              id: request.id,
-              result: {
-                tools: this.listTools(),
-              },
-            };
-
-          case 'tools/call': {
-            const toolName = request.params?.name;
-            const toolArgs = request.params?.arguments || {};
-            const toolResult = await this.callTool(toolName, toolArgs);
-            return {
-              jsonrpc: '2.0',
-              id: request.id,
-              result: toolResult,
-            };
-          }
-
+            return ok({ tools: this.listTools() });
+          case 'tools/call':
+            return ok(await this.callTool(request.params?.name, request.params?.arguments || {}));
           default:
-            return {
-              jsonrpc: '2.0',
-              id: request.id,
-              error: {
-                code: -32601,
-                message: `Method not found: ${request.method}`,
-              },
-            };
+            return fail(-32601, `Method not found: ${request.method}`);
         }
       } catch (err: any) {
-        return {
-          jsonrpc: '2.0',
-          id: request.id,
-          error: {
-            code: -32000,
-            message: err?.message || String(err),
-          },
-        };
+        return fail(-32000, err?.message || String(err));
       }
     },
 
     startStdio(): void {
-      const rl = readline.createInterface({
-        input: process.stdin,
-        terminal: false,
-      });
-
+      const rl = readline.createInterface({ input: process.stdin, terminal: false });
       rl.on('line', async (line) => {
         const trimmed = line.trim();
         if (!trimmed) return;
         try {
-          const req = JSON.parse(trimmed) as JsonRpcRequest;
-          const res = await this.handleJsonRpcRequest(req);
-          if (res) {
-            process.stdout.write(JSON.stringify(res) + '\n');
-          }
+          const res = await this.handleJsonRpcRequest(JSON.parse(trimmed) as JsonRpcRequest);
+          if (res) process.stdout.write(JSON.stringify(res) + '\n');
         } catch (err: any) {
           process.stdout.write(
-            JSON.stringify({
-              jsonrpc: '2.0',
-              id: null,
-              error: {
-                code: -32700,
-                message: `Parse error: ${err?.message || err}`,
-              },
-            }) + '\n',
+            JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32700, message: `Parse error: ${err?.message || err}` } }) + '\n',
           );
         }
       });

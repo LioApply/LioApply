@@ -5,24 +5,7 @@ export interface LlmChatMessage {
   content: string;
 }
 
-export function buildAtsCvOptimizationPrompt(
-  baseCv: BaseCvData,
-  jobInfo: {
-    title: string;
-    company?: string;
-    description: string;
-  },
-): LlmChatMessage[] {
-  const mutableBasePayload = {
-    headline: baseCv.headline,
-    summary: baseCv.summary,
-    experience: baseCv.experience,
-    projects: baseCv.projects,
-    technologies: baseCv.technologies,
-    sectionTitles: baseCv.sectionTitles,
-  };
-
-  const systemPrompt = `Você é um especialista sênior em engenharia de currículos para sistemas ATS (Gupy, Greenhouse, Lever, Workday) com restrição rigorosa de credibilidade factual para triagem técnica humana.
+const SYSTEM_PROMPT = `Você é um especialista sênior em engenharia de currículos para sistemas ATS (Gupy, Greenhouse, Lever, Workday) com restrição rigorosa de credibilidade factual para triagem técnica humana.
 
 Seu objetivo é adaptar cirurgicamente as seções fornecidas do currículo do candidato para maximizar a pontuação de match na vaga alvo, SEM inventar empresas, datas ou cargos inexistentes e SEM gerar texto robótico ou inverossímil.
 
@@ -44,6 +27,20 @@ Seu objetivo é adaptar cirurgicamente as seções fornecidas do currículo do c
 4. Formato de Saída:
    - Retorne EXCLUSIVAMENTE um objeto JSON válido (sem blocos markdown, sem comentários e sem texto antes ou depois) seguindo exatamente a estrutura solicitada.`;
 
+const OUTPUT_SCHEMA_HINT = `{
+  "headline": "Título da Vaga | Stack 1 · Stack 2 · Stack 3 · Stack 4",
+  "summary": "Resumo profissional otimizado para a vaga...",
+  "experience": [{ "title": "Cargo alinhado", "company": "Empresa original", "location": "Local original", "dates": "Período original", "description": ["Bullet 1...", "Bullet 2..."] }],
+  "projects": [{ "name": "Nome do projeto original", "techStack": "Stacks destacadas", "dates": "Data original", "description": ["Bullet..."] }],
+  "technologies": { "languages": "...", "frontend": "...", "backend": "...", "databases": "...", "devops": "...", "aiAndTools": "...", "practices": "..." },
+  "sectionTitles": { "summary": "Resumo Profissional", "experience": "Experiência Profissional", "projects": "Projetos", "education": "Educação", "technologies": "Habilidades Técnicas", "languages": "Certificações e Idiomas" }
+}`;
+
+export function buildAtsCvOptimizationPrompt(
+  baseCv: BaseCvData,
+  jobInfo: { title: string; company?: string; description: string },
+): LlmChatMessage[] {
+  const { headline, summary, experience, projects, technologies, sectionTitles } = baseCv;
   const userPrompt = `### DADOS DA VAGA ALVO:
 - Cargo: ${jobInfo.title}
 - Empresa: ${jobInfo.company || 'Não informada'}
@@ -51,55 +48,13 @@ Seu objetivo é adaptar cirurgicamente as seções fornecidas do currículo do c
 ${jobInfo.description}
 
 ### CURRÍCULO BASE DO CANDIDATO (JSON):
-${JSON.stringify(mutableBasePayload, null, 2)}
+${JSON.stringify({ headline, summary, experience, projects, technologies, sectionTitles }, null, 2)}
 
 Retorne APENAS o JSON atualizado no formato exato abaixo:
-{
-  "headline": "Título da Vaga | Stack 1 · Stack 2 · Stack 3 · Stack 4",
-  "summary": "Resumo profissional otimizado para a vaga...",
-  "experience": [
-    {
-      "title": "Cargo alinhado",
-      "company": "Empresa original",
-      "location": "Local original",
-      "dates": "Período original",
-      "description": [
-        "Primeiro bullet iniciando com keyword principal e impacto...",
-        "Segundo bullet..."
-      ]
-    }
-  ],
-  "projects": [
-    {
-      "name": "Nome do projeto original",
-      "techStack": "Stacks do projeto destacadas para a vaga",
-      "dates": "Data original",
-      "description": [
-        "Bullet destacando tecnologias relevantes para a vaga..."
-      ]
-    }
-  ],
-  "technologies": {
-    "languages": "Lista priorizada...",
-    "frontend": "Lista priorizada...",
-    "backend": "Lista priorizada...",
-    "databases": "Lista priorizada...",
-    "devops": "Lista priorizada...",
-    "aiAndTools": "Lista priorizada...",
-    "practices": "Lista priorizada..."
-  },
-  "sectionTitles": {
-    "summary": "Resumo Profissional",
-    "experience": "Experiência Profissional",
-    "projects": "Projetos",
-    "education": "Educação",
-    "technologies": "Habilidades Técnicas",
-    "languages": "Certificações e Idiomas"
-  }
-}`;
+${OUTPUT_SCHEMA_HINT}`;
 
   return [
-    { role: 'system', content: systemPrompt },
+    { role: 'system', content: SYSTEM_PROMPT },
     { role: 'user', content: userPrompt },
   ];
 }

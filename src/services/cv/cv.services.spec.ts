@@ -6,7 +6,7 @@ import { TypstCompilerService } from './typst-compiler.service';
 import { CvLlmService } from './cv-llm.service';
 import { CvOptimizationService } from './cv-optimization.service';
 import { BaseCvData } from '../../interfaces/cv/cv.interface';
-import { JobConfigService } from '../../config/job-config.service';
+import { CvConfigService } from './cv-config.service';
 
 describe('CV Optimization Pipeline Services', () => {
   let templateService: TypstTemplateService;
@@ -76,7 +76,7 @@ describe('CV Optimization Pipeline Services', () => {
           openRouterModel: 'openrouter/free',
           baseCvPath: './cv.base.yaml',
         }),
-      } as unknown as JobConfigService;
+      } as unknown as CvConfigService;
 
       const llmService = new CvLlmService(mockConfigService);
 
@@ -246,7 +246,7 @@ describe('CV Optimization Pipeline Services', () => {
             openRouterModel: 'openrouter/free',
             baseCvPath: './cv.base.yaml',
           }),
-        } as unknown as JobConfigService);
+        } as unknown as CvConfigService);
 
       process.env.GROQ_API_KEY = 'gsk-test';
       expect(makeService('groq').resolveLlmProvider()).toMatchObject({

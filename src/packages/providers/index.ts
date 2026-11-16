@@ -1,13 +1,9 @@
-import { IProviderConfig } from '../../interfaces/isearch/isearch.interface';
-import {
-  createGlassdoorProvider,
-  glassdoor,
-  glassdoorProvider,
-} from './glassdoor';
+import { ILocationOption, IProviderConfig } from '../../interfaces/isearch/isearch.interface';
+import { LinkedinApifyService } from '../../services/Linkedin/linkedin-apify.service';
+import { PlaywrightService } from '../../services/playWrightService/scrapservice.service';
+import { createGlassdoorProvider, glassdoor, glassdoorProvider } from './glassdoor';
 import { createLinkedinProvider, linkedin, linkedinProvider } from './linkedin';
 import { createRemotarProvider, remotar, remotarProvider } from './remotar';
-import { PlaywrightService } from '../../services/playWrightService/scrapservice.service';
-import { LinkedinApifyService } from '../../services/Linkedin/linkedin-apify.service';
 
 export type BuiltinProviderName = 'linkedin' | 'glassdoor' | 'remotar';
 
@@ -23,29 +19,29 @@ export const DEFAULT_WEB_PROVIDERS: IProviderConfig[] = [
   remotarProvider,
 ];
 
-/**
- * Resolves an array of provider names ('linkedin', 'glassdoor', 'remotar') or custom `IProviderConfig` objects
- * into ready-to-scrape `IProviderConfig` instances.
- */
+export function resolveLocationPreset(rawLocation: string): ILocationOption {
+  const normalized = rawLocation.trim().toLowerCase();
+  return (
+     {
+      label: normalized,
+      workplaceTypes: ['remote', 'onsite', 'hybrid'],
+      locationQuery: normalized.replace(/\s+/g, '-'),
+    }
+  );
+}
+
 export function resolveProviders(
   inputs?: Array<BuiltinProviderName | string | IProviderConfig>,
 ): IProviderConfig[] {
-  if (!inputs || inputs.length === 0) {
-    return [...DEFAULT_WEB_PROVIDERS];
-  }
+  if (!inputs?.length) return [...DEFAULT_WEB_PROVIDERS];
 
-  const resolved: IProviderConfig[] = [];
-  for (const item of inputs) {
+  const resolved = inputs.flatMap((item) => {
     if (typeof item === 'string') {
-      const normalized = item.trim().toLowerCase() as BuiltinProviderName;
-      const found = PROVIDER_REGISTRY[normalized];
-      if (found) {
-        resolved.push(found);
-      }
-    } else if (item && typeof item === 'object' && 'name' in item) {
-      resolved.push(item);
+      const found = PROVIDER_REGISTRY[item.trim().toLowerCase() as BuiltinProviderName];
+      return found ? [found] : [];
     }
-  }
+    return item && typeof item === 'object' && 'name' in item ? [item] : [];
+  });
 
   return resolved.length > 0 ? resolved : [...DEFAULT_WEB_PROVIDERS];
 }

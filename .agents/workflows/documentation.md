@@ -29,10 +29,11 @@ src/
   │     └── job-config/          # Declarative YAML search and user profile configuration shapes
   ├── config/
   │     ├── providers.ts         # Scraper provider builders and CSS selectors
-  │     └── job-config.service.ts# Declarative YAML/ENV configuration loader (Config Layer)
+  │     ├── yaml-config.loader.ts# Shared pure YAML/Base64/file loader helpers
+  │     └── job-config.service.ts# Declarative YAML/ENV search, profile & classifier configuration loader (Config Layer)
   ├── services/
   │     ├── bot/                 # Orchestrator interface for browser scraping and messaging requests
-  │     ├── cv/                  # On-demand ATS CV optimization (Multi-provider LLM + Jev + Typst PDF compiler)
+  │     ├── cv/                  # On-demand ATS CV optimization (CvConfigService, Multi-provider LLM, Typst PDF compiler)
   │     ├── classifier/          # ClassifierService (orchestrator) + providers/ (Groq, Gemini, OpenRouter, Ollama, Jev)
   │     ├── scrapservice/        # Low-level HTTP integrations with Apify (LinkedIn)
   │     ├── glassdoor/           # Low-level HTTP integrations with Apify (Glassdoor)
@@ -50,12 +51,13 @@ src/
 ### Core Architecture & SOLID Principles:
 1. **Single Responsibility Principle (SRP):**
    - **`TaskService`**: Solely responsible for orchestrating the one-shot pipeline.
-   - **`JobConfigService`**: Solely handles loading, parsing, and normalizing user search queries and semantic profiles from `jobs.config.yaml` or `.env`.
+   - **`JobConfigService`**: Solely handles loading, parsing, and normalizing user search queries, semantic profiles, and classifier settings from `jobs.config.yaml` or `.env` (delegating provider location presets to `@lioapply/providers` via `resolveLocationPreset`).
+   - **`CvConfigService`**: Solely handles CV optimization configuration and cached loading/parsing of `cv.base.yaml` / `CV_BASE_YAML` inside `@lioapply/cv`.
    - **`JobHistoryRepository`**: Solely handles persistent storage and querying of sent jobs using **Drizzle ORM**.
    - **`JobDeduplicationService`**: Solely handles title and company normalization and duplicate filtering.
    - **`ClassifierService` + `services/classifier/providers/*`**: `ClassifierService` reads `classifier` from `jobs.config.yaml` / `.env` and routes semantic job fit and CV evaluation to the chosen provider service (`GroqService`, `GeminiService`, `OpenRouterService`, `OllamaService`, `JevService`). Each provider only declares its defaults (URL, model, env keys) on top of `base.provider.ts`; HTTP clients live in `classifier-clients.ts`. Adding a provider = one new `*.service.ts` + registering it in `providers/index.ts`.
    - **`JobDigestFormatter`**: Solely formats and styles the WhatsApp alert messages (with `[#ID]` badges for on-demand CV generation).
-   - **`CvOptimizationService` / `CvLlmService` / `TypstTemplateService` / `TypstCompilerService`**: Handles on-demand ATS resume tailoring from `cv.base.yaml` using OpenRouter, semantic verification with TypeSafe Jev, ultra-fast PDF compilation via Typst (`typst` CLI), and direct PDF delivery to WhatsApp via Evolution API (`sendMediaDocument`).
+   - **`CvOptimizationService` / `CvConfigService` / `CvLlmService` / `TypstTemplateService` / `TypstCompilerService`**: Handles on-demand ATS resume tailoring from `cv.base.yaml` using configurable LLM providers, semantic verification with TypeSafe Jev, ultra-fast PDF compilation via Typst (`typst` CLI), and direct PDF delivery to WhatsApp via Evolution API (`sendMediaDocument`).
    - **`ScrapserviceService`**: Handles low-level LinkedIn scraper HTTP request logic.
    - **`GlassdoorService`**: Handles low-level Glassdoor scraper HTTP request logic.
 2. **Open-Closed Principle (OCP):**

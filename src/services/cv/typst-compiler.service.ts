@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { execFile } from 'child_process';
-import { promisify } from 'util';
+import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { randomUUID } from 'crypto';
+import { promisify } from 'util';
+import { findExistingFile } from '../../config/yaml-config.loader';
 
 const execFileAsync = promisify(execFile);
 
@@ -12,33 +13,17 @@ const execFileAsync = promisify(execFile);
 export class TypstCompilerService {
   private readonly logger = new Logger(TypstCompilerService.name);
 
-  /**
-   * Resolves the path to the `typst` binary on the host or container.
-   */
   resolveTypstBinary(): string {
-    if (process.env.TYPST_BIN && fs.existsSync(process.env.TYPST_BIN)) {
-      return process.env.TYPST_BIN;
-    }
-
-    const homeDir = os.homedir();
-    const candidateBins = [
-      path.join(homeDir, '.local', 'bin', 'typst'),
-      '/usr/local/bin/typst',
-      '/usr/bin/typst',
-    ];
-
-    for (const candidate of candidateBins) {
-      if (fs.existsSync(candidate)) {
-        return candidate;
-      }
-    }
-
-    return 'typst';
+    return (
+      findExistingFile([
+        process.env.TYPST_BIN,
+        path.join(os.homedir(), '.local', 'bin', 'typst'),
+        '/usr/local/bin/typst',
+        '/usr/bin/typst',
+      ]) || 'typst'
+    );
   }
 
-  /**
-   * Compiles a Typst (.typ) source string into a PDF Buffer and cleans up temporary files.
-   */
   async compileToPdfBuffer(typstSource: string): Promise<Buffer> {
     const tempId = randomUUID();
     const tmpDir = os.tmpdir();
@@ -47,16 +32,9 @@ export class TypstCompilerService {
 
     try {
       await fs.promises.writeFile(inputTypPath, typstSource, 'utf8');
-
-      const typstBin = this.resolveTypstBinary();
-      await execFileAsync(typstBin, ['compile', inputTypPath, outputPdfPath], {
-        timeout: 15000,
-      });
-
+      await execFileAsync(this.resolveTypstBinary(), ['compile', inputTypPath, outputPdfPath], { timeout: 15000 });
       const pdfBuffer = await fs.promises.readFile(outputPdfPath);
-      this.logger.log(
-        `📄 Currículo compilado com sucesso via Typst (${(pdfBuffer.length / 1024).toFixed(1)} KB).`,
-      );
+      this.logger.log(`📄 Currículo compilado com sucesso via Typst (${(pdfBuffer.length / 1024).toFixed(1)} KB).`);
       return pdfBuffer;
     } finally {
       await fs.promises.unlink(inputTypPath).catch(() => undefined);

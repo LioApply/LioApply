@@ -48,6 +48,7 @@ export class LioApplyCoreModule {
       exports: [
         JobConfigService,
         JobDeduplicationService,
+        CLASSIFIER_PROVIDERS,
         ClassifierService,
         JobDigestFormatter,
         PlaywrightService,
