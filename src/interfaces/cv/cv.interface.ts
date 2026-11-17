@@ -66,19 +66,24 @@ export interface BaseCvData {
   languages: CvLanguageItem[];
   certifications?: string[];
   technologies: CvTechnologies;
+  techLabels?: Partial<Record<keyof CvTechnologies, string>>;
   sectionTitles?: Partial<CvSectionTitles>;
 }
 
 /**
- * Only the mutable sections that the LLM is allowed to tailor for a target job.
- * Immutable fields (name, contact, education, languages, certifications) are preserved from BaseCvData in code.
+ * Sections that the LLM is allowed to tailor or translate for a target job.
+ * Immutable fields (name, contact, company names, institutions, years) are preserved in code.
  */
 export interface CvTailoredPatchDto {
   headline?: string;
   summary: string;
   experience: CvExperienceItem[];
   projects: CvProjectItem[];
+  education?: CvEducationItem[];
+  languages?: CvLanguageItem[];
+  certifications?: string[];
   technologies: CvTechnologies;
+  techLabels?: Partial<Record<keyof CvTechnologies, string>>;
   sectionTitles?: Partial<CvSectionTitles>;
 }
 

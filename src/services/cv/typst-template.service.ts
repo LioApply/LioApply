@@ -76,15 +76,15 @@ export class TypstTemplateService {
       : '';
   }
 
-  /** Preserves immutable fields (name, contact, education, languages, certifications). */
+  /** Preserves immutable fields (name, contact) while applying tailored/translated sections. */
   mergeBaseWithPatch(baseCv: BaseCvData, patch?: Partial<CvTailoredPatchDto>): BaseCvData {
     if (!patch) return baseCv;
     return {
       name: baseCv.name,
       contact: { ...baseCv.contact },
-      education: baseCv.education,
-      languages: baseCv.languages,
-      certifications: baseCv.certifications,
+      education: nonEmptyArr(patch.education, baseCv.education),
+      languages: nonEmptyArr(patch.languages, baseCv.languages),
+      certifications: nonEmptyArr(patch.certifications, baseCv.certifications || []),
       headline: nonEmpty(patch.headline, baseCv.headline),
       summary: nonEmpty(patch.summary, baseCv.summary)!,
       experience: nonEmptyArr(patch.experience, baseCv.experience),
@@ -93,6 +93,10 @@ export class TypstTemplateService {
         patch.technologies && Object.keys(patch.technologies).length > 0
           ? { ...baseCv.technologies, ...patch.technologies }
           : baseCv.technologies,
+      techLabels:
+        patch.techLabels || baseCv.techLabels
+          ? { ...baseCv.techLabels, ...patch.techLabels }
+          : undefined,
       sectionTitles: { ...DEFAULT_SECTION_TITLES, ...baseCv.sectionTitles, ...patch.sectionTitles },
     };
   }
@@ -126,7 +130,7 @@ export class TypstTemplateService {
       section(titles.experience, this.renderExperience(cvData.experience || [])),
       section(titles.projects, this.renderProjects(cvData.projects || [])),
       section(titles.education, this.renderEducation(cvData.education || [])),
-      section(titles.technologies, this.renderTechnologies(cvData.technologies || {})),
+      section(titles.technologies, this.renderTechnologies(cvData.technologies || {}, cvData.techLabels)),
       section(titles.languages, this.renderCertificationsAndLanguages(cvData.certifications || [], cvData.languages || [])),
     ].join('\n\n') + '\n';
   }
@@ -163,7 +167,7 @@ export class TypstTemplateService {
     return items
       .map(
         (edu) =>
-          `#twocol([*${this.escapeTypst(edu.institution)}*], [${edu.location ? this.escapeTypst(edu.location) : 'Brasil'}])\n#v(-4pt)\n#twocol([_${this.escapeTypst(edu.degree)}_], [_${this.escapeTypst(edu.dates)}_])`,
+          `#twocol([*${this.escapeTypst(edu.institution)}*], [${edu.location ? this.escapeTypst(edu.location) : ''}])\n#v(-4pt)\n#twocol([_${this.escapeTypst(edu.degree)}_], [_${this.escapeTypst(edu.dates)}_])`,
       )
       .join('\n#v(3pt)\n');
   }
@@ -174,9 +178,12 @@ export class TypstTemplateService {
     return `#underline[#link("${this.escapeTypstStringLiteral(href)}")[${this.escapeTypst(clean)}]]`;
   }
 
-  private renderTechnologies(tech: CvTechnologies): string {
+  private renderTechnologies(
+    tech: CvTechnologies,
+    customLabels?: Partial<Record<keyof CvTechnologies, string>>,
+  ): string {
     return TECH_LABELS.filter(([key]) => Boolean(tech[key]))
-      .map(([key, label]) => `*${label}:* ${this.escapeTypst(tech[key])}`)
+      .map(([key, defaultLabel]) => `*${this.escapeTypst(customLabels?.[key] || defaultLabel)}:* ${this.escapeTypst(tech[key])}`)
       .join(' \\\n');
   }
 

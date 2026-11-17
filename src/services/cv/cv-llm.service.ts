@@ -10,6 +10,16 @@ const AUTO_ORDER = ['groq', 'gemini', 'openrouter'];
 const nonEmpty = (val: unknown, fallback?: string) => (typeof val === 'string' && val.trim() ? val.trim() : fallback);
 const cleanList = (val: unknown, fallback: string[] = []) =>
   Array.isArray(val) ? val.map((d) => String(d).trim()).filter(Boolean) : fallback;
+const preserveTranslatedDate = (candidate: unknown, original?: string): string => {
+  const next = nonEmpty(candidate);
+  if (!next) return original || '';
+  if (!original) return next;
+  const origYears = original.match(/\b\d{4}\b/g) || [];
+  const nextYears = next.match(/\b\d{4}\b/g) || [];
+  const yearsConsistent =
+    origYears.length === 0 || (nextYears.length > 0 && nextYears.every((y) => origYears.includes(y)));
+  return yearsConsistent ? next : original;
+};
 
 @Injectable()
 export class CvLlmService {
@@ -87,23 +97,42 @@ export class CvLlmService {
       summary: nonEmpty(p.summary, base.summary)!,
       experience: Array.isArray(p.experience) && p.experience.length
         ? p.experience.map((e, i) => ({
-            title: e.title || base.experience[i]?.title || 'Desenvolvedor',
+            title: nonEmpty(e.title, base.experience[i]?.title) || 'Developer',
             company: base.experience[i]?.company || e.company || '',
-            location: base.experience[i]?.location || e.location || '',
-            dates: base.experience[i]?.dates || e.dates || '',
+            location: nonEmpty(e.location, base.experience[i]?.location) || '',
+            dates: preserveTranslatedDate(e.dates, base.experience[i]?.dates),
             description: cleanList(e.description, base.experience[i]?.description),
           }))
         : base.experience,
       projects: Array.isArray(p.projects) && p.projects.length
         ? p.projects.map((proj, i) => ({
-            name: base.projects[i]?.name || proj.name || 'Projeto',
-            techStack: proj.techStack || base.projects[i]?.techStack,
+            name: base.projects[i]?.name || proj.name || 'Project',
+            techStack: nonEmpty(proj.techStack, base.projects[i]?.techStack),
             link: base.projects[i]?.link || proj.link,
-            dates: base.projects[i]?.dates || proj.dates,
+            dates: preserveTranslatedDate(proj.dates, base.projects[i]?.dates) || undefined,
             description: cleanList(proj.description, base.projects[i]?.description),
           }))
         : base.projects,
+      education: Array.isArray(p.education) && p.education.length
+        ? p.education.map((ed, i) => ({
+            institution: base.education[i]?.institution || ed.institution || '',
+            degree: nonEmpty(ed.degree, base.education[i]?.degree) || '',
+            location: nonEmpty(ed.location, base.education[i]?.location),
+            dates: preserveTranslatedDate(ed.dates, base.education[i]?.dates),
+          }))
+        : base.education,
+      languages: Array.isArray(p.languages) && p.languages.length
+        ? p.languages.map((lang, i) => ({
+            language: nonEmpty(lang.language, base.languages[i]?.language) || '',
+            level: nonEmpty(lang.level, base.languages[i]?.level) || '',
+            certification: nonEmpty(lang.certification, base.languages[i]?.certification),
+          }))
+        : base.languages,
+      certifications: Array.isArray(p.certifications) && p.certifications.length
+        ? cleanList(p.certifications, base.certifications)
+        : base.certifications,
       technologies: p.technologies && typeof p.technologies === 'object' ? { ...base.technologies, ...p.technologies } : base.technologies,
+      techLabels: p.techLabels && typeof p.techLabels === 'object' ? p.techLabels : base.techLabels,
       sectionTitles: p.sectionTitles && typeof p.sectionTitles === 'object' ? p.sectionTitles : base.sectionTitles,
     };
   }

@@ -22,11 +22,15 @@ Seu objetivo é adaptar cirurgicamente as seções fornecidas do currículo do c
      c) Na seção "technologies", priorizando na frente as tecnologias exigidas na vaga em cada categoria ("languages", "frontend", "backend", "databases", "devops", "aiAndTools", "practices").
 3. Idioma (Adaptação Obrigatória ao Idioma da Vaga):
    - Identifique o idioma predominante da vaga (priorizando "Descrição / Requisitos" e usando "Cargo" como apoio).
-   - Gere TODO o conteúdo textual mutável do JSON de saída exclusivamente nesse mesmo idioma, traduzindo e adaptando do currículo base quando necessário (sem misturar idiomas ou deixar trechos sem tradução):
+   - Gere TODO o conteúdo textual do JSON de saída exclusivamente nesse mesmo idioma, traduzindo e adaptando do currículo base quando necessário (NUNCA deixe trechos, datas, locais, graus acadêmicos, certificações ou rótulos em outro idioma):
      * "headline", "summary"
-     * "experience[].title" e "experience[].description"
-     * "projects[].techStack" e "projects[].description"
+     * "experience[].title", "experience[].location" (ex: "Brasil" -> "Brazil", "Remoto" -> "Remote"), "experience[].dates" (mantendo exatamente os mesmos anos/números, traduzindo palavras como "Atual" -> "Present", meses como "Mai" -> "May"), e "experience[].description"
+     * "projects[].techStack", "projects[].dates" (mantendo os mesmos anos/números, traduzindo meses/palavras) e "projects[].description"
+     * "education[].degree", "education[].location" (ex: "Brasil" -> "Brazil"), "education[].dates" (mantendo instituição e anos originais; traduzindo "em andamento" -> "in progress", etc.)
+     * "certifications" (traduza descrições/níveis como "Nível B2" -> "Level B2", mantendo o nome oficial da certificação)
+     * "languages" (traduza "language" e "level", ex: "Inglês" -> "English", "proficiência profissional" -> "professional working proficiency", "Português" -> "Portuguese", "nativo" -> "native")
      * "technologies" (traduza termos descritivos como em "practices", mantendo nomes próprios de linguagens/frameworks)
+     * "techLabels" (traduza TODOS os rótulos das categorias: "languages", "frontend", "backend", "databases", "devops", "aiAndTools", "practices" — ex. em inglês: "Languages", "Frontend", "Backend", "Databases", "Cloud & DevOps", "AI & Tools", "Practices")
      * "sectionTitles" ("summary", "experience", "projects", "education", "technologies", "languages")
    - Exemplos de "sectionTitles" por idioma (para outros idiomas, traduza com terminologia profissional equivalente):
      * Português: "Resumo Profissional", "Experiência Profissional", "Projetos", "Educação", "Habilidades Técnicas", "Certificações e Idiomas"
@@ -38,9 +42,13 @@ Seu objetivo é adaptar cirurgicamente as seções fornecidas do currículo do c
 const OUTPUT_SCHEMA_HINT = `{
   "headline": "<Título da vaga no idioma da vaga> | Stack 1 · Stack 2 · Stack 3 · Stack 4",
   "summary": "<Resumo profissional otimizado no idioma da vaga>",
-  "experience": [{ "title": "<Cargo alinhado no idioma da vaga>", "company": "<Empresa original>", "location": "<Local original>", "dates": "<Período original>", "description": ["<Bullet 1 no idioma da vaga>", "<Bullet 2 no idioma da vaga>"] }],
-  "projects": [{ "name": "<Nome do projeto original>", "techStack": "<Stacks destacadas>", "dates": "<Data original>", "description": ["<Bullet no idioma da vaga>"] }],
+  "experience": [{ "title": "<Cargo alinhado no idioma da vaga>", "company": "<Empresa original>", "location": "<Local traduzido>", "dates": "<Período traduzido mantendo os anos>", "description": ["<Bullet 1 no idioma da vaga>", "<Bullet 2 no idioma da vaga>"] }],
+  "projects": [{ "name": "<Nome do projeto original>", "techStack": "<Stacks destacadas>", "dates": "<Data traduzida mantendo os anos>", "description": ["<Bullet no idioma da vaga>"] }],
+  "education": [{ "institution": "<Instituição original>", "degree": "<Curso traduzido>", "location": "<Local traduzido>", "dates": "<Período traduzido>" }],
+  "certifications": ["<Certificação com nível traduzido>"],
+  "languages": [{ "language": "<Idioma traduzido>", "level": "<Nível traduzido>" }],
   "technologies": { "languages": "...", "frontend": "...", "backend": "...", "databases": "...", "devops": "...", "aiAndTools": "...", "practices": "<Práticas no idioma da vaga>" },
+  "techLabels": { "languages": "<Rótulo traduzido>", "frontend": "Frontend", "backend": "Backend", "databases": "<Rótulo traduzido>", "devops": "Cloud & DevOps", "aiAndTools": "<Rótulo traduzido>", "practices": "<Rótulo traduzido>" },
   "sectionTitles": { "summary": "<Título no idioma da vaga>", "experience": "<Título no idioma da vaga>", "projects": "<Título no idioma da vaga>", "education": "<Título no idioma da vaga>", "technologies": "<Título no idioma da vaga>", "languages": "<Título no idioma da vaga>" }
 }`;
 
@@ -48,7 +56,7 @@ export function buildAtsCvOptimizationPrompt(
   baseCv: BaseCvData,
   jobInfo: { title: string; company?: string; description: string },
 ): LlmChatMessage[] {
-  const { headline, summary, experience, projects, technologies, sectionTitles } = baseCv;
+  const { headline, summary, experience, projects, education, certifications, languages, technologies, techLabels, sectionTitles } = baseCv;
   const userPrompt = `### DADOS DA VAGA ALVO:
 - Cargo: ${jobInfo.title}
 - Empresa: ${jobInfo.company || 'Não informada'}
@@ -56,9 +64,9 @@ export function buildAtsCvOptimizationPrompt(
 ${jobInfo.description}
 
 ### CURRÍCULO BASE DO CANDIDATO (JSON):
-${JSON.stringify({ headline, summary, experience, projects, technologies, sectionTitles }, null, 2)}
+${JSON.stringify({ headline, summary, experience, projects, education, certifications, languages, technologies, techLabels, sectionTitles }, null, 2)}
 
-Adapte TODO o conteúdo e todos os "sectionTitles" para o mesmo idioma da vaga acima. Retorne APENAS o JSON atualizado no formato exato abaixo:
+Adapte e traduza TODO o conteúdo (incluindo datas, locais, educação, certificações, idiomas, "techLabels" e "sectionTitles") para o mesmo idioma da vaga acima. Retorne APENAS o JSON atualizado no formato exato abaixo:
 ${OUTPUT_SCHEMA_HINT}`;
 
   return [
