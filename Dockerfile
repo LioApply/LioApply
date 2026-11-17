@@ -8,8 +8,11 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 WORKDIR /usr/src/app
 
-# Instala o pnpm via npm para evitar erro de verificação de chave do corepack
-RUN npm install -g pnpm@10 && \
+# Instala o pnpm via npm e xz-utils para extrair o binário do Typst
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends xz-utils && \
+    rm -rf /var/lib/apt/lists/* && \
+    npm install -g pnpm@10 && \
     ARCH=$(uname -m) && \
     curl -fsSL "https://github.com/typst/typst/releases/latest/download/typst-${ARCH}-unknown-linux-musl.tar.xz" | tar -xJ --strip-components=1 -C /usr/local/bin "typst-${ARCH}-unknown-linux-musl/typst" && \
     chmod +x /usr/local/bin/typst
