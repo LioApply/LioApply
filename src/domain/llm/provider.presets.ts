@@ -1,6 +1,6 @@
-import type { ProviderDefinition } from './base.provider';
+import type { ProviderDefinition } from './provider.entity';
 
-export const BUILTIN_PROVIDER_DEFINITIONS: ProviderDefinition[] = [
+export const BUILTIN_PROVIDER_PRESETS: ProviderDefinition[] = [
   {
     id: 'groq',
     protocol: 'openai-compatible',

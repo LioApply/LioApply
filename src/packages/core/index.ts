@@ -26,9 +26,10 @@ export {
 export {
   BUILTIN_PROVIDER_DEFINITIONS,
   GenericLlmProvider,
+  LlmProvider,
+  ProviderRegistry,
   createLlmProvider,
   createProviders,
-  type ProviderDefaults,
   type ProviderDefinition,
   type ProviderOverrideEntry,
   type ProviderProtocol,
