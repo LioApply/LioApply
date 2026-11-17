@@ -7,6 +7,7 @@ import {
   parseYamlObject,
 } from '../../config/yaml-config.loader';
 import { BaseCvData, CvLlmProviderType, CvOptimizationConfig } from '../../interfaces/cv/cv.interface';
+import { ProviderConfigEntry } from '../../interfaces/job-config/job-config.interface';
 
 @Injectable()
 export class CvConfigService {
@@ -33,6 +34,14 @@ export class CvConfigService {
       baseUrl: process.env.CV_BASE_URL?.trim() || yamlCv?.baseUrl,
       baseCvPath: process.env.CV_BASE_PATH || yamlCv?.baseCvPath || path.resolve(process.cwd(), 'cv.base.yaml'),
     };
+  }
+
+  getCustomProviders(): Record<string, ProviderConfigEntry> | undefined {
+    try {
+      return this.jobConfigService?.getConfig?.()?.providers;
+    } catch {
+      return undefined;
+    }
   }
 
   getBaseCv(): BaseCvData {

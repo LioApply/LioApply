@@ -86,6 +86,7 @@ export class JobConfigService implements OnModuleInit {
       profile: asObj<AppJobConfig['profile']>(raw?.profile),
       classifier: asObj<AppJobConfig['classifier']>(raw?.classifier),
       cvOptimization: asObj<AppJobConfig['cvOptimization']>(raw?.cvOptimization),
+      providers: asObj<AppJobConfig['providers']>(raw?.providers),
     };
   }
 }

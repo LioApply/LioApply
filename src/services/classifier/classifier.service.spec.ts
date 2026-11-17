@@ -223,5 +223,29 @@ describe('ClassifierService (System-One multi-provider)', () => {
         global.fetch = originalFetch;
       }
     });
+
+    it('supports custom declarative providers and preset overrides from config', () => {
+      process.env.DEEPSEEK_API_KEY = 'ds-test';
+      try {
+        const cfgMock = {
+          getClassifierConfig: () => ({ provider: 'deepseek' }),
+          getConfig: () => ({
+            providers: {
+              deepseek: {
+                protocol: 'openai-compatible' as const,
+                baseUrl: 'https://api.deepseek.com/v1/chat/completions',
+                model: 'deepseek-chat',
+                apiKeyEnv: 'DEEPSEEK_API_KEY',
+              },
+            },
+          }),
+        } as unknown as JobConfigService;
+
+        const service = createClassifierService(cfgMock);
+        expect(service.getActiveProviderName()).toBe('deepseek (deepseek-chat)');
+      } finally {
+        delete process.env.DEEPSEEK_API_KEY;
+      }
+    });
   });
 });

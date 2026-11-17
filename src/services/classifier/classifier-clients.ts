@@ -7,9 +7,7 @@ import {
   SystemOneResponse,
 } from '../../utils/jev';
 
-export type ClassifierProviderType =
-  | 'auto' | 'none' | 'openrouter' | 'groq' | 'gemini'
-  | 'ollama' | 'openai-compatible' | 'systemone' | 'jev';
+export type ClassifierProviderType = string;
 
 export interface ClassifierProviderConfig {
   provider: ClassifierProviderType;

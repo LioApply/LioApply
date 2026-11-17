@@ -309,5 +309,32 @@ describe('CV Optimization Pipeline Services', () => {
         baseUrl: 'https://custom.or.local/v1',
       });
     });
+
+    it('resolves custom declarative providers and preset overrides in CvLlmService', () => {
+      process.env.DEEPSEEK_API_KEY = 'ds-test';
+      try {
+        const customCfgService = new CvConfigService({
+          getConfig: () => ({
+            cvOptimization: { provider: 'deepseek' },
+            providers: {
+              deepseek: {
+                protocol: 'openai-compatible',
+                baseUrl: 'https://api.deepseek.com/v1/chat/completions',
+                model: 'deepseek-chat',
+                apiKeyEnv: 'DEEPSEEK_API_KEY',
+              },
+            },
+          }),
+        } as any);
+
+        expect(new CvLlmService(customCfgService).resolveLlmProvider()).toMatchObject({
+          provider: 'deepseek',
+          model: 'deepseek-chat',
+          baseUrl: 'https://api.deepseek.com/v1/chat/completions',
+        });
+      } finally {
+        delete process.env.DEEPSEEK_API_KEY;
+      }
+    });
   });
 });

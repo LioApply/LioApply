@@ -24,11 +24,14 @@ export {
   type JobEvaluationResult,
 } from '../../services/classifier/classifier.service';
 export {
-  GeminiService,
-  GroqService,
-  JevService,
-  OllamaService,
-  OpenRouterService,
+  BUILTIN_PROVIDER_DEFINITIONS,
+  GenericLlmProvider,
+  buildProvidersFromConfig,
+  createBuiltinProviders,
+  createLlmProvider,
+  type ProviderDefaults,
+  type ProviderDefinition,
+  type ProviderProtocol,
 } from '../../services/classifier/providers';
 export type {
   ClassifierProvider,

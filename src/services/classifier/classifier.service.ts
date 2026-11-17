@@ -11,7 +11,7 @@ import {
   UserProfileCriteria,
 } from '../../utils/jev';
 import { ClassifierProviderType } from './classifier-clients';
-import { CLASSIFIER_PROVIDER_CLASSES, CLASSIFIER_PROVIDERS } from './providers';
+import { buildProvidersFromConfig, CLASSIFIER_PROVIDERS, createBuiltinProviders } from './providers';
 
 export interface JobEvaluationResult {
   shouldApply: boolean;
@@ -46,12 +46,14 @@ export class ClassifierService implements OnModuleInit {
     this.activeProviderName = 'none';
 
     const yaml = this.configService?.getClassifierConfig?.();
+    const customProviders = this.configService?.getConfig?.()?.providers;
+    const providers = customProviders ? buildProvidersFromConfig(customProviders, this.providers) : this.providers;
     const requested = (process.env.CLASSIFIER_PROVIDER || yaml?.provider || 'auto')
       .trim()
       .toLowerCase() as ClassifierProviderType;
-    const id = this.resolveProviderId(requested);
+    const id = this.resolveProviderId(requested, providers);
 
-    const provider = this.providers.find((p) => p.id === id);
+    const provider = providers.find((p) => p.id === id);
     if (!provider) {
       this.logger.warn(
         id === 'none'
@@ -74,9 +76,12 @@ export class ClassifierService implements OnModuleInit {
     this.logger.log(`✅ Classificador System-One inicializado com provider: ${resolution.name}`);
   }
 
-  private resolveProviderId(requested: ClassifierProviderType): ClassifierProviderType {
+  private resolveProviderId(
+    requested: ClassifierProviderType,
+    providers: ClassifierProvider[] = this.providers,
+  ): ClassifierProviderType {
     if (requested !== 'auto') return requested === 'systemone' ? 'jev' : requested;
-    const detected = AUTO_PRIORITY.find((id) => this.providers.find((p) => p.id === id)?.isConfigured());
+    const detected = AUTO_PRIORITY.find((id) => providers.find((p) => p.id === id)?.isConfigured());
     return detected || (process.env.CLASSIFIER_BASE_URL ? 'ollama' : 'none');
   }
 
@@ -153,10 +158,7 @@ export class ClassifierService implements OnModuleInit {
 }
 
 export function createClassifierService(configService?: JobConfigService): ClassifierService {
-  const service = new ClassifierService(
-    configService,
-    CLASSIFIER_PROVIDER_CLASSES.map((Provider) => new Provider()),
-  );
+  const service = new ClassifierService(configService, createBuiltinProviders());
   service.initializeProvider();
   return service;
 }

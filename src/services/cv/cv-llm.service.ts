@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ChatProviderConfig, ClassifierProvider } from '../../interfaces/classifier/classifier.interface';
 import { BaseCvData, CvTailoredPatchDto } from '../../interfaces/cv/cv.interface';
 import { extractJsonObject } from '../../utils/jev';
-import { CLASSIFIER_PROVIDER_CLASSES, CLASSIFIER_PROVIDERS } from '../classifier/providers';
+import { buildProvidersFromConfig, CLASSIFIER_PROVIDERS, createBuiltinProviders } from '../classifier/providers';
 import { CvConfigService } from './cv-config.service';
 import { buildAtsCvOptimizationPrompt } from './prompts/cv-ats.prompt';
 
@@ -20,9 +20,12 @@ export class CvLlmService {
     private readonly cvConfigService: CvConfigService,
     @Optional() @Inject(CLASSIFIER_PROVIDERS) providers?: ClassifierProvider[],
   ) {
-    this.providers = providers?.length
-      ? providers
-      : CLASSIFIER_PROVIDER_CLASSES.map((Provider) => new Provider());
+    this.providers = providers?.length ? providers : createBuiltinProviders();
+  }
+
+  private getEffectiveProviders(): ClassifierProvider[] {
+    const custom = this.cvConfigService.getCustomProviders?.();
+    return custom ? buildProvidersFromConfig(custom, this.providers) : this.providers;
   }
 
   async generateTailoredCvPatch(
@@ -46,17 +49,18 @@ export class CvLlmService {
     const cvConfig = this.cvConfigService.getCvOptimizationConfig();
     const requested = (cvConfig.provider || 'auto').trim().toLowerCase();
 
-    const matched = this.providers.find((p) => p.id === requested);
+    const providers = this.getEffectiveProviders();
+    const matched = providers.find((p) => p.id === requested);
     if (requested !== 'auto' && (requested === 'systemone' || requested === 'none' || matched?.supportsChat === false)) {
       throw new Error(
         `Provider "${requested}" é apenas um classificador System-One e não suporta geração de currículo. Use groq, gemini, openrouter, ollama ou openai-compatible.`,
       );
     }
 
-    const targetId = this.resolveProviderId(requested);
+    const targetId = this.resolveProviderId(requested, providers);
     const provider =
-      this.providers.find((p) => p.id === targetId && p.supportsChat !== false) ||
-      this.providers.find((p) => p.id === 'ollama');
+      providers.find((p) => p.id === targetId && p.supportsChat !== false) ||
+      providers.find((p) => p.id === 'ollama');
     if (!provider?.resolveChatConfig || !provider.chatCompletion) {
       throw new Error(`Provider de LLM "${targetId}" não disponível.`);
     }
@@ -73,9 +77,9 @@ export class CvLlmService {
     return { provider, config };
   }
 
-  private resolveProviderId(requested: string): string {
+  private resolveProviderId(requested: string, providers: ClassifierProvider[]): string {
     if (requested !== 'auto') return requested === 'openai-compatible' ? 'ollama' : requested;
-    const configured = AUTO_ORDER.find((id) => this.providers.find((p) => p.id === id)?.isConfigured());
+    const configured = AUTO_ORDER.find((id) => providers.find((p) => p.id === id)?.isConfigured());
     return configured || (process.env.CV_BASE_URL ? 'ollama' : 'openrouter');
   }
 
