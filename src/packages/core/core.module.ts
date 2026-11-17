@@ -3,7 +3,7 @@ import { JobConfigService } from '../../config/job-config.service';
 import { ClassifierService } from '../../services/classifier/classifier.service';
 import {
   CLASSIFIER_PROVIDERS,
-  createBuiltinProviders,
+  createProviders,
 } from '../../services/classifier/providers';
 import { JobDigestFormatter } from '../../services/task-service/job-digest.formatter';
 import { JobDeduplicationService } from '../../utils/deduplication';
@@ -28,7 +28,15 @@ export class LioApplyCoreModule {
         JobDeduplicationService,
         {
           provide: CLASSIFIER_PROVIDERS,
-          useFactory: () => createBuiltinProviders(),
+          useFactory: (jobConfigService: JobConfigService) => {
+            try {
+              if (!jobConfigService.getConfig()) jobConfigService.loadConfig();
+              return createProviders(jobConfigService.getConfig()?.providers);
+            } catch {
+              return createProviders();
+            }
+          },
+          inject: [JobConfigService],
         },
         ClassifierService,
         JobDigestFormatter,

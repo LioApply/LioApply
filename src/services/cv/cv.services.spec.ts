@@ -313,21 +313,20 @@ describe('CV Optimization Pipeline Services', () => {
     it('resolves custom declarative providers and preset overrides in CvLlmService', () => {
       process.env.DEEPSEEK_API_KEY = 'ds-test';
       try {
+        const { createProviders } = require('../classifier/providers');
+        const customProviders = createProviders({
+          deepseek: {
+            protocol: 'openai-compatible',
+            baseUrl: 'https://api.deepseek.com/v1/chat/completions',
+            model: 'deepseek-chat',
+            apiKeyEnv: 'DEEPSEEK_API_KEY',
+          },
+        });
         const customCfgService = new CvConfigService({
-          getConfig: () => ({
-            cvOptimization: { provider: 'deepseek' },
-            providers: {
-              deepseek: {
-                protocol: 'openai-compatible',
-                baseUrl: 'https://api.deepseek.com/v1/chat/completions',
-                model: 'deepseek-chat',
-                apiKeyEnv: 'DEEPSEEK_API_KEY',
-              },
-            },
-          }),
+          getConfig: () => ({ cvOptimization: { provider: 'deepseek' } }),
         } as any);
 
-        expect(new CvLlmService(customCfgService).resolveLlmProvider()).toMatchObject({
+        expect(new CvLlmService(customCfgService, customProviders).resolveLlmProvider()).toMatchObject({
           provider: 'deepseek',
           model: 'deepseek-chat',
           baseUrl: 'https://api.deepseek.com/v1/chat/completions',

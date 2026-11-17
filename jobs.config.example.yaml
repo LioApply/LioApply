@@ -81,6 +81,10 @@ profile:
     - "Curitiba"
     - "São Paulo"
 
+
+classifier:
+  provider: "auto"
+
 # Configurações de Otimização de Currículo (Sob Demanda)
 # Provedor de LLM (openrouter | groq | gemini | ollama | openai-compatible | auto)
 cvOptimization:

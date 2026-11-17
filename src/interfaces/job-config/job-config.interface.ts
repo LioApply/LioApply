@@ -2,21 +2,9 @@ import { ILocationOption } from '../isearch/isearch.interface';
 import { UserProfileCriteria } from '../../utils/jev';
 import { CvOptimizationConfig } from '../cv/cv.interface';
 import { ClassifierProviderConfig } from '../../services/classifier/classifier-clients';
+import type { ProviderOverrideEntry } from '../../services/classifier/providers';
 
-export interface ProviderConfigEntry {
-  protocol?: 'openai-compatible' | 'gemini' | 'jev';
-  label?: string;
-  baseUrl?: string;
-  model?: string;
-  chatModel?: string;
-  apiKeyEnv?: string;
-  keyEnvs?: string[];
-  urlEnvs?: string[];
-  modelEnvs?: string[];
-  requiresKey?: boolean;
-  headers?: Record<string, string>;
-  supportsChat?: boolean;
-}
+export type { ProviderOverrideEntry as ProviderConfigEntry };
 
 export interface AppJobConfig {
   search: {
@@ -27,5 +15,5 @@ export interface AppJobConfig {
   profile?: Partial<UserProfileCriteria>;
   classifier?: Partial<ClassifierProviderConfig>;
   cvOptimization?: Partial<CvOptimizationConfig>;
-  providers?: Record<string, ProviderConfigEntry>;
+  providers?: Record<string, ProviderOverrideEntry>;
 }

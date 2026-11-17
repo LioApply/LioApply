@@ -26,11 +26,11 @@ export {
 export {
   BUILTIN_PROVIDER_DEFINITIONS,
   GenericLlmProvider,
-  buildProvidersFromConfig,
-  createBuiltinProviders,
   createLlmProvider,
+  createProviders,
   type ProviderDefaults,
   type ProviderDefinition,
+  type ProviderOverrideEntry,
   type ProviderProtocol,
 } from '../../services/classifier/providers';
 export type {
