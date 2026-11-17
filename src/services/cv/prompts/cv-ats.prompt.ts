@@ -1,4 +1,99 @@
-import { BaseCvData } from '../../../interfaces/cv/cv.interface';
+import { BaseCvData, CvSectionTitles, CvTechnologies } from '../../../interfaces/cv/cv.interface';
+
+export type SupportedCvLanguage = 'pt' | 'en' | 'es';
+
+export const SECTION_TITLES_BY_LANG: Record<SupportedCvLanguage, CvSectionTitles> = {
+  pt: {
+    summary: 'Resumo Profissional',
+    experience: 'Experiência Profissional',
+    projects: 'Projetos',
+    education: 'Educação',
+    technologies: 'Habilidades Técnicas',
+    languages: 'Certificações e Idiomas',
+  },
+  en: {
+    summary: 'Professional Summary',
+    experience: 'Professional Experience',
+    projects: 'Projects',
+    education: 'Education',
+    technologies: 'Technical Skills',
+    languages: 'Certifications & Languages',
+  },
+  es: {
+    summary: 'Resumen Profesional',
+    experience: 'Experiencia Profesional',
+    projects: 'Proyectos',
+    education: 'Educación',
+    technologies: 'Habilidades Técnicas',
+    languages: 'Certificaciones e Idiomas',
+  },
+};
+
+export const TECH_LABELS_BY_LANG: Record<SupportedCvLanguage, Record<keyof CvTechnologies, string>> = {
+  pt: {
+    languages: 'Linguagens',
+    frontend: 'Frontend',
+    backend: 'Backend',
+    databases: 'Bancos de Dados',
+    devops: 'Cloud & DevOps',
+    aiAndTools: 'IA & Ferramentas',
+    practices: 'Práticas',
+  },
+  en: {
+    languages: 'Languages',
+    frontend: 'Frontend',
+    backend: 'Backend',
+    databases: 'Databases',
+    devops: 'Cloud & DevOps',
+    aiAndTools: 'AI & Tools',
+    practices: 'Practices',
+  },
+  es: {
+    languages: 'Lenguajes',
+    frontend: 'Frontend',
+    backend: 'Backend',
+    databases: 'Bases de Datos',
+    devops: 'Cloud & DevOps',
+    aiAndTools: 'IA y Herramientas',
+    practices: 'Prácticas',
+  },
+};
+
+const LANG_DISPLAY: Record<SupportedCvLanguage, string> = {
+  pt: 'Português (Portuguese)',
+  en: 'English (Inglês)',
+  es: 'Español (Spanish)',
+};
+
+export function detectJobLanguage(text: string): SupportedCvLanguage {
+  const lower = (text || '').toLowerCase();
+  const countMatches = (words: string[]) =>
+    words.reduce((acc, w) => acc + (lower.match(new RegExp(`\\b${w}\\b`, 'g'))?.length || 0), 0);
+
+  const enScore = countMatches([
+    'the', 'and', 'with', 'for', 'you', 'will', 'are', 'our', 'requirements', 'experience',
+    'responsibilities', 'skills', 'work', 'team', 'software', 'developer', 'engineer',
+    'remote', 'hybrid', 'benefits', 'about', 'your', 'have', 'from', 'this', 'looking',
+  ]);
+  const ptScore =
+    countMatches([
+      'para', 'com', 'que', 'uma', 'dos', 'das', 'nos', 'nas', 'como', 'requisitos',
+      'experiência', 'responsabilidades', 'vaga', 'empresa', 'trabalho', 'equipe',
+      'desenvolvedor', 'engenheiro', 'remoto', 'híbrido', 'benefícios', 'sobre', 'você',
+      'nosso', 'nossa', 'conhecimento', 'buscamos', 'anos',
+    ]) + (lower.match(/[ãõç]/g)?.length || 0);
+  const esScore =
+    countMatches([
+      'para', 'con', 'que', 'una', 'los', 'las', 'como', 'requisitos', 'experiencia',
+      'responsabilidades', 'puesto', 'empresa', 'trabajo', 'equipo', 'desarrollador',
+      'ingeniero', 'remoto', 'híbrido', 'beneficios', 'sobre', 'nosotros', 'nuestro',
+      'conocimientos', 'buscamos', 'años',
+    ]) + (lower.match(/[ñ¿¡]/g)?.length || 0) * 2;
+
+  if (enScore >= ptScore && enScore >= esScore && enScore > 0) return 'en';
+  if (esScore > ptScore && esScore > enScore) return 'es';
+  return 'pt';
+}
 
 export interface LlmChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -57,7 +152,11 @@ export function buildAtsCvOptimizationPrompt(
   jobInfo: { title: string; company?: string; description: string },
 ): LlmChatMessage[] {
   const { headline, summary, experience, projects, education, certifications, languages, technologies, techLabels, sectionTitles } = baseCv;
-  const userPrompt = `### DADOS DA VAGA ALVO:
+  const targetLang = detectJobLanguage(`${jobInfo.title}\n${jobInfo.description}`);
+  const targetLangDisplay = LANG_DISPLAY[targetLang];
+  const userPrompt = `### IDIOMA OBRIGATÓRIO DE SAÍDA: ${targetLangDisplay}
+
+### DADOS DA VAGA ALVO:
 - Cargo: ${jobInfo.title}
 - Empresa: ${jobInfo.company || 'Não informada'}
 - Descrição / Requisitos:
@@ -66,7 +165,7 @@ ${jobInfo.description}
 ### CURRÍCULO BASE DO CANDIDATO (JSON):
 ${JSON.stringify({ headline, summary, experience, projects, education, certifications, languages, technologies, techLabels, sectionTitles }, null, 2)}
 
-Adapte e traduza TODO o conteúdo (incluindo datas, locais, educação, certificações, idiomas, "techLabels" e "sectionTitles") para o mesmo idioma da vaga acima. Retorne APENAS o JSON atualizado no formato exato abaixo:
+Adapte e traduza TODO o conteúdo (incluindo datas, locais, educação, certificações, idiomas, "techLabels" e "sectionTitles") para **${targetLangDisplay}**. Retorne APENAS o JSON atualizado no formato exato abaixo:
 ${OUTPUT_SCHEMA_HINT}`;
 
   return [

@@ -9,15 +9,13 @@ import {
   CvTailoredPatchDto,
   CvTechnologies,
 } from '../../interfaces/cv/cv.interface';
+import {
+  SECTION_TITLES_BY_LANG,
+  SupportedCvLanguage,
+  TECH_LABELS_BY_LANG,
+} from './prompts/cv-ats.prompt';
 
-const DEFAULT_SECTION_TITLES: CvSectionTitles = {
-  summary: 'Resumo Profissional',
-  experience: 'Experiência Profissional',
-  projects: 'Projetos',
-  education: 'Educação',
-  technologies: 'Habilidades Técnicas',
-  languages: 'Certificações e Idiomas',
-};
+const DEFAULT_SECTION_TITLES: CvSectionTitles = SECTION_TITLES_BY_LANG.pt;
 
 const TECH_LABELS: Array<[keyof CvTechnologies, string]> = [
   ['languages', 'Linguagens'],
@@ -77,8 +75,17 @@ export class TypstTemplateService {
   }
 
   /** Preserves immutable fields (name, contact) while applying tailored/translated sections. */
-  mergeBaseWithPatch(baseCv: BaseCvData, patch?: Partial<CvTailoredPatchDto>): BaseCvData {
+  mergeBaseWithPatch(
+    baseCv: BaseCvData,
+    patch?: Partial<CvTailoredPatchDto>,
+    targetLanguage?: SupportedCvLanguage,
+  ): BaseCvData {
     if (!patch) return baseCv;
+    const lang = targetLanguage || 'pt';
+    const langTitles = SECTION_TITLES_BY_LANG[lang];
+    const langTechLabels = TECH_LABELS_BY_LANG[lang];
+    const keepBaseLabels = lang === 'pt';
+
     return {
       name: baseCv.name,
       contact: { ...baseCv.contact },
@@ -93,16 +100,25 @@ export class TypstTemplateService {
         patch.technologies && Object.keys(patch.technologies).length > 0
           ? { ...baseCv.technologies, ...patch.technologies }
           : baseCv.technologies,
-      techLabels:
-        patch.techLabels || baseCv.techLabels
-          ? { ...baseCv.techLabels, ...patch.techLabels }
-          : undefined,
-      sectionTitles: { ...DEFAULT_SECTION_TITLES, ...baseCv.sectionTitles, ...patch.sectionTitles },
+      techLabels: {
+        ...langTechLabels,
+        ...(keepBaseLabels ? baseCv.techLabels : undefined),
+        ...patch.techLabels,
+      },
+      sectionTitles: {
+        ...langTitles,
+        ...(keepBaseLabels ? baseCv.sectionTitles : undefined),
+        ...patch.sectionTitles,
+      },
     };
   }
 
-  renderTypstDocument(cvData: BaseCvData, jobMetadata?: { title?: string; company?: string }): string {
-    const titles: CvSectionTitles = { ...DEFAULT_SECTION_TITLES, ...cvData.sectionTitles };
+  renderTypstDocument(
+    cvData: BaseCvData,
+    jobMetadata?: { title?: string; company?: string; language?: SupportedCvLanguage },
+  ): string {
+    const fallbackTitles = jobMetadata?.language ? SECTION_TITLES_BY_LANG[jobMetadata.language] : DEFAULT_SECTION_TITLES;
+    const titles: CvSectionTitles = { ...fallbackTitles, ...cvData.sectionTitles };
     const docTitle = jobMetadata?.title ? `${cvData.name} - ${jobMetadata.title}` : `${cvData.name} - Currículo`;
 
     const contactParts: string[] = [];

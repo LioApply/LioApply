@@ -7,6 +7,7 @@ import { BotService } from '../bot/bot.service';
 import { ClassifierService } from '../classifier/classifier.service';
 import { CvConfigService } from './cv-config.service';
 import { CvLlmService } from './cv-llm.service';
+import { detectJobLanguage } from './prompts/cv-ats.prompt';
 import { TypstCompilerService } from './typst-compiler.service';
 import { buildSafePdfFileName, TypstTemplateService } from './typst-template.service';
 
@@ -94,10 +95,12 @@ export class CvOptimizationService {
       description: jobInfo.description,
     });
     const evaluation = await this.classifierService.evaluateTailoredCv(baseCv, patch, jobInfo);
-    const tailoredCv = this.typstTemplateService.mergeBaseWithPatch(baseCv, patch);
+    const targetLanguage = detectJobLanguage(`${jobInfo.title}\n${jobInfo.description}`);
+    const tailoredCv = this.typstTemplateService.mergeBaseWithPatch(baseCv, patch, targetLanguage);
     const typstDoc = this.typstTemplateService.renderTypstDocument(tailoredCv, {
       title: jobInfo.title,
       company: jobInfo.company,
+      language: targetLanguage,
     });
     const pdfBuffer = await this.typstCompilerService.compileToPdfBuffer(typstDoc);
     const fileName = buildSafePdfFileName(baseCv.name, jobInfo.company || jobInfo.title);

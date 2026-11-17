@@ -11,6 +11,7 @@ import {
 import { createClassifierService } from '../../services/classifier/classifier.service';
 import { CvConfigService } from '../../services/cv/cv-config.service';
 import { CvLlmService } from '../../services/cv/cv-llm.service';
+import { detectJobLanguage } from '../../services/cv/prompts/cv-ats.prompt';
 import { CvOptimizationResult, CvOptimizationService } from '../../services/cv/cv-optimization.service';
 import { TypstCompilerService } from '../../services/cv/typst-compiler.service';
 import { buildSafePdfFileName, TypstTemplateService } from '../../services/cv/typst-template.service';
@@ -65,9 +66,10 @@ export function typstCvEngine(options?: CvEngineOptions) {
       const baseCv = this.getBaseCv();
       const patch = await llmService.generateTailoredCvPatch(baseCv, jobInfo);
       const evaluation = await classifierService.evaluateTailoredCv(baseCv, patch, jobInfo);
-      const tailoredCv = templateService.mergeBaseWithPatch(baseCv, patch);
+      const targetLanguage = detectJobLanguage(`${jobInfo.title}\n${jobInfo.description}`);
+      const tailoredCv = templateService.mergeBaseWithPatch(baseCv, patch, targetLanguage);
       const pdfBuffer = await compilerService.compileToPdfBuffer(
-        templateService.renderTypstDocument(tailoredCv, jobInfo),
+        templateService.renderTypstDocument(tailoredCv, { ...jobInfo, language: targetLanguage }),
       );
       const fileName = buildSafePdfFileName(baseCv.name, jobInfo.company || jobInfo.title);
 
