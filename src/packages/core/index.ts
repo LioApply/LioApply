@@ -24,11 +24,8 @@ export {
   type JobEvaluationResult,
 } from '../../services/classifier/classifier.service';
 export {
-  BUILTIN_PROVIDER_DEFINITIONS,
-  GenericLlmProvider,
+  BUILTIN_PROVIDER_PRESETS,
   LlmProvider,
-  ProviderRegistry,
-  createLlmProvider,
   createProviders,
   type ProviderDefinition,
   type ProviderOverrideEntry,

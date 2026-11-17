@@ -4,6 +4,7 @@ import * as YAML from 'yaml';
 import { TypstTemplateService } from './typst-template.service';
 import { TypstCompilerService } from './typst-compiler.service';
 import { CvLlmService } from './cv-llm.service';
+import { createProviders } from '../classifier/providers';
 import { CvOptimizationService } from './cv-optimization.service';
 import { BaseCvData } from '../../interfaces/cv/cv.interface';
 import { CvConfigService } from './cv-config.service';
@@ -313,7 +314,6 @@ describe('CV Optimization Pipeline Services', () => {
     it('resolves custom declarative providers and preset overrides in CvLlmService', () => {
       process.env.DEEPSEEK_API_KEY = 'ds-test';
       try {
-        const { createProviders } = require('../classifier/providers');
         const customProviders = createProviders({
           deepseek: {
             protocol: 'openai-compatible',

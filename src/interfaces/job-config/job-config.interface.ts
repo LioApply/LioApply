@@ -4,8 +4,6 @@ import { CvOptimizationConfig } from '../cv/cv.interface';
 import { ClassifierProviderConfig } from '../../services/classifier/classifier-clients';
 import type { ProviderOverrideEntry } from '../../services/classifier/providers';
 
-export type { ProviderOverrideEntry as ProviderConfigEntry };
-
 export interface AppJobConfig {
   search: {
     queries: string[];
