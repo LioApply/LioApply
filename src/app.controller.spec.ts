@@ -1,26 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { PlaywrightService } from './services/playWrightService/scrapservice.service';
+import { CvOptimizationService } from './services/cv/cv-optimization.service';
 import { WhatsappService } from './services/whatsapp-service/whatsapp-service.service';
-import { TaskService } from './services/task-service/task-service.service';
 import type { CreateInstanceDto } from './interfaces/ICreateInstanceDTO/icreateinstancedto.interface';
 import type { SendMessageDTO } from './interfaces/SendMessageDTO';
 
 describe('AppController', () => {
   let appController: AppController;
   let appService: jest.Mocked<AppService>;
-  let playwrightService: jest.Mocked<PlaywrightService>;
   let whatsappService: jest.Mocked<WhatsappService>;
-  let taskService: jest.Mocked<TaskService>;
+  let cvOptimizationService: jest.Mocked<CvOptimizationService>;
 
   beforeEach(async () => {
     const mockAppService = {
       getHello: jest.fn().mockReturnValue('Hello World!'),
-    };
-
-    const mockScrapService = {
-      scrape: jest.fn(),
     };
 
     const mockWhatsappService = {
@@ -29,25 +23,23 @@ describe('AppController', () => {
       sendMessage: jest.fn(),
     };
 
-    const mockTaskService = {
-      runScrapeJob: jest.fn(),
+    const mockCvOptimizationService = {
+      handleEvolutionWebhook: jest.fn(),
     };
 
     const app: TestingModule = await Test.createTestingModule({
       controllers: [AppController],
       providers: [
         { provide: AppService, useValue: mockAppService },
-        { provide: PlaywrightService, useValue: mockScrapService },
         { provide: WhatsappService, useValue: mockWhatsappService },
-        { provide: TaskService, useValue: mockTaskService },
+        { provide: CvOptimizationService, useValue: mockCvOptimizationService },
       ],
     }).compile();
 
     appController = app.get<AppController>(AppController);
     appService = app.get(AppService);
-    playwrightService = app.get(PlaywrightService);
     whatsappService = app.get(WhatsappService);
-    taskService = app.get(TaskService);
+    cvOptimizationService = app.get(CvOptimizationService);
   });
 
   describe('root', () => {
@@ -87,7 +79,6 @@ describe('AppController', () => {
 
   describe('sendMessage', () => {
     it('should send a WhatsApp message', async () => {
-      const instanceName = 'test-instance';
       const data: SendMessageDTO = {
         number: '5511999999999',
         text: 'Hello from test',
@@ -96,10 +87,22 @@ describe('AppController', () => {
       };
       whatsappService.sendMessage.mockResolvedValue({ message: 'Sent' });
 
-      const result = await appController.sendMessage(data, instanceName);
+      const result = await appController.sendMessage(data);
 
       expect(whatsappService.sendMessage).toHaveBeenCalledWith(data);
       expect(result).toEqual({ message: 'Sent' });
+    });
+  });
+
+  describe('handleEvolutionWebhook', () => {
+    it('should delegate webhook payload to CvOptimizationService', async () => {
+      const payload = { text: '/cv 1' };
+      cvOptimizationService.handleEvolutionWebhook.mockResolvedValue({ status: 'completed' } as never);
+
+      const result = await appController.handleEvolutionWebhook(payload);
+
+      expect(cvOptimizationService.handleEvolutionWebhook).toHaveBeenCalledWith(payload);
+      expect(result).toEqual({ status: 'completed' });
     });
   });
 });

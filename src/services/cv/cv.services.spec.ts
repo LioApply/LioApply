@@ -335,5 +335,36 @@ describe('CV Optimization Pipeline Services', () => {
         delete process.env.DEEPSEEK_API_KEY;
       }
     });
+
+    it('handles Evolution webhook commands and ignores unrelated messages', async () => {
+      const botMock = { sendMessage: jest.fn().mockResolvedValue(undefined), sendMediaDocument: jest.fn() };
+      const service = new CvOptimizationService(
+        { getBaseCv: () => ({ name: 'Dev' }) } as any,
+        { getJobById: jest.fn().mockResolvedValue({ id: 7, title: 'Dev Node', company: 'ACME' }) } as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        botMock as any,
+      );
+
+      expect(await service.handleEvolutionWebhook({ text: 'olá' })).toEqual({ status: 'ignored' });
+
+      const spy = jest.spyOn(service, 'optimizeForStoredJobId').mockResolvedValue({
+        pdfBuffer: Buffer.from('pdf'),
+        fileName: 'cv.pdf',
+        evaluation: { isCredible: true, credibilityProbability: 1, atsScore: 90, summaryReason: 'OK' },
+        tailoredCv: {} as any,
+      });
+
+      const res = await service.handleEvolutionWebhook({
+        instance: 'bot',
+        data: { key: { remoteJid: '5511999999999@s.whatsapp.net' }, message: { conversation: '/cv 7' } },
+      });
+
+      expect(spy).toHaveBeenCalledWith(7, { sendWhatsapp: true, recipientNumber: '5511999999999' });
+      expect(botMock.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ instanceName: 'bot', number: '5511999999999' }));
+      expect(res).toMatchObject({ status: 'completed', fileName: 'cv.pdf' });
+    });
   });
 });

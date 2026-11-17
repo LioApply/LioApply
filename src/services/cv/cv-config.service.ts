@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { JobConfigService } from '../../config/job-config.service';
@@ -6,11 +6,10 @@ import {
   findExistingFile,
   parseYamlObject,
 } from '../../config/yaml-config.loader';
-import { BaseCvData, CvLlmProviderType, CvOptimizationConfig } from '../../interfaces/cv/cv.interface';
+import { BaseCvData, CvOptimizationConfig } from '../../interfaces/cv/cv.interface';
 
 @Injectable()
 export class CvConfigService {
-  private readonly logger = new Logger(CvConfigService.name);
   private cachedBaseCv: BaseCvData | null = null;
 
   constructor(
@@ -25,7 +24,7 @@ export class CvConfigService {
       yamlCv = undefined;
     }
 
-    const envProvider = process.env.CV_PROVIDER?.trim() as CvLlmProviderType | undefined;
+    const envProvider = process.env.CV_PROVIDER?.trim() as CvOptimizationConfig['provider'] | undefined;
 
     return {
       provider: envProvider || yamlCv?.provider || 'auto',

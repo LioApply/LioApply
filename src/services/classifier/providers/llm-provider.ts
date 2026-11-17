@@ -9,6 +9,7 @@ import {
   GeminiClassifierClient,
   NativeSystemOneHttpClient,
   OpenAiCompatibleClassifierClient,
+  postJson,
 } from '../classifier-clients';
 
 export type ProviderProtocol = 'openai-compatible' | 'gemini' | 'jev';
@@ -50,11 +51,7 @@ async function postChatJson<T>(
   body: unknown,
   label: string,
 ): Promise<T> {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify(body),
-  });
+  const res = await postJson(url, headers, body);
   if (!res.ok) throw new Error(`Erro na API do ${label} (${res.status}): ${await res.text()}`);
   return (await res.json()) as T;
 }

@@ -20,20 +20,28 @@ Seu objetivo é adaptar cirurgicamente as seções fornecidas do currículo do c
      a) No "headline" e no "summary" (resumo profissional);
      b) Nos primeiros bullets ("description") das experiências mais relevantes (GoWork Digital e The Public House), descrevendo ação técnica e impacto concreto;
      c) Na seção "technologies", priorizando na frente as tecnologias exigidas na vaga em cada categoria ("languages", "frontend", "backend", "databases", "devops", "aiAndTools", "practices").
-3. Idioma:
-   - O JSON de saída DEVE seguir integralmente o idioma da descrição da vaga:
-     * Se a vaga estiver em português -> gere todo o texto e "sectionTitles" em português ("Resumo Profissional", "Experiência Profissional", "Projetos", "Educação", "Habilidades Técnicas", "Certificações e Idiomas").
-     * Se a vaga estiver em inglês -> traduza todo o texto, períodos e "sectionTitles" ("Professional Summary", "Professional Experience", "Projects", "Education", "Technical Skills", "Certifications & Languages") para inglês profissional.
+3. Idioma (Adaptação Obrigatória ao Idioma da Vaga):
+   - Identifique o idioma predominante da vaga (priorizando "Descrição / Requisitos" e usando "Cargo" como apoio).
+   - Gere TODO o conteúdo textual mutável do JSON de saída exclusivamente nesse mesmo idioma, traduzindo e adaptando do currículo base quando necessário (sem misturar idiomas ou deixar trechos sem tradução):
+     * "headline", "summary"
+     * "experience[].title" e "experience[].description"
+     * "projects[].techStack" e "projects[].description"
+     * "technologies" (traduza termos descritivos como em "practices", mantendo nomes próprios de linguagens/frameworks)
+     * "sectionTitles" ("summary", "experience", "projects", "education", "technologies", "languages")
+   - Exemplos de "sectionTitles" por idioma (para outros idiomas, traduza com terminologia profissional equivalente):
+     * Português: "Resumo Profissional", "Experiência Profissional", "Projetos", "Educação", "Habilidades Técnicas", "Certificações e Idiomas"
+     * English: "Professional Summary", "Professional Experience", "Projects", "Education", "Technical Skills", "Certifications & Languages"
+     * Español: "Resumen Profesional", "Experiencia Profesional", "Proyectos", "Educación", "Habilidades Técnicas", "Certificaciones e Idiomas"
 4. Formato de Saída:
    - Retorne EXCLUSIVAMENTE um objeto JSON válido (sem blocos markdown, sem comentários e sem texto antes ou depois) seguindo exatamente a estrutura solicitada.`;
 
 const OUTPUT_SCHEMA_HINT = `{
-  "headline": "Título da Vaga | Stack 1 · Stack 2 · Stack 3 · Stack 4",
-  "summary": "Resumo profissional otimizado para a vaga...",
-  "experience": [{ "title": "Cargo alinhado", "company": "Empresa original", "location": "Local original", "dates": "Período original", "description": ["Bullet 1...", "Bullet 2..."] }],
-  "projects": [{ "name": "Nome do projeto original", "techStack": "Stacks destacadas", "dates": "Data original", "description": ["Bullet..."] }],
-  "technologies": { "languages": "...", "frontend": "...", "backend": "...", "databases": "...", "devops": "...", "aiAndTools": "...", "practices": "..." },
-  "sectionTitles": { "summary": "Resumo Profissional", "experience": "Experiência Profissional", "projects": "Projetos", "education": "Educação", "technologies": "Habilidades Técnicas", "languages": "Certificações e Idiomas" }
+  "headline": "<Título da vaga no idioma da vaga> | Stack 1 · Stack 2 · Stack 3 · Stack 4",
+  "summary": "<Resumo profissional otimizado no idioma da vaga>",
+  "experience": [{ "title": "<Cargo alinhado no idioma da vaga>", "company": "<Empresa original>", "location": "<Local original>", "dates": "<Período original>", "description": ["<Bullet 1 no idioma da vaga>", "<Bullet 2 no idioma da vaga>"] }],
+  "projects": [{ "name": "<Nome do projeto original>", "techStack": "<Stacks destacadas>", "dates": "<Data original>", "description": ["<Bullet no idioma da vaga>"] }],
+  "technologies": { "languages": "...", "frontend": "...", "backend": "...", "databases": "...", "devops": "...", "aiAndTools": "...", "practices": "<Práticas no idioma da vaga>" },
+  "sectionTitles": { "summary": "<Título no idioma da vaga>", "experience": "<Título no idioma da vaga>", "projects": "<Título no idioma da vaga>", "education": "<Título no idioma da vaga>", "technologies": "<Título no idioma da vaga>", "languages": "<Título no idioma da vaga>" }
 }`;
 
 export function buildAtsCvOptimizationPrompt(
@@ -50,7 +58,7 @@ ${jobInfo.description}
 ### CURRÍCULO BASE DO CANDIDATO (JSON):
 ${JSON.stringify({ headline, summary, experience, projects, technologies, sectionTitles }, null, 2)}
 
-Retorne APENAS o JSON atualizado no formato exato abaixo:
+Adapte TODO o conteúdo e todos os "sectionTitles" para o mesmo idioma da vaga acima. Retorne APENAS o JSON atualizado no formato exato abaixo:
 ${OUTPUT_SCHEMA_HINT}`;
 
   return [

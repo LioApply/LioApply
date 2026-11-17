@@ -67,8 +67,9 @@ export class WhatsappService {
         throw new Error(message);
       }
       return body ? (JSON.parse(body) as T) : (undefined as T);
-    } catch (error: any) {
-      this.logger.error(`❌ Fetch falhou: ${error.message}`, error.stack);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`❌ Fetch falhou: ${err.message}`, err.stack);
       throw error;
     }
   }

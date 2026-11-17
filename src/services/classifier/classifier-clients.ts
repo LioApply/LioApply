@@ -23,7 +23,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const isReasoningModel = (model: string) =>
   /gpt-oss|\bo[134](?:-|$)|deepseek-r1|\bqwq\b|qwen3|thinking|reasoning/i.test(model);
 
-const postJson = (url: string, headers: Record<string, string>, body: unknown, timeoutMs = 30000) =>
+export const postJson = (url: string, headers: Record<string, string>, body: unknown, timeoutMs = 30000) =>
   fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers },

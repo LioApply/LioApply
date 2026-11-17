@@ -6,7 +6,6 @@ import { WhatsappService } from './services/whatsapp-service/whatsapp-service.se
 import { TaskService } from './services/task-service/task-service.service';
 import { BotService } from './services/bot/bot.service';
 import { JobHistoryRepository } from './repositories/job-history.repository';
-import { LinkedinApifyService } from './services/Linkedin/linkedin-apify.service';
 import { LioApplyCoreModule } from '@lioapply/core';
 import { glassdoor, linkedin, remotar } from '@lioapply/providers';
 import { LioApplyCvModule, typstCvEngine } from '@lioapply/cv';
@@ -30,7 +29,6 @@ import { CvOptimizationService } from './services/cv/cv-optimization.service';
     TaskService,
     BotService,
     JobHistoryRepository,
-    LinkedinApifyService,
     CvOptimizationService,
   ],
 })

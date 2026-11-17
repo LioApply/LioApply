@@ -29,7 +29,7 @@ const TECH_LABELS: Array<[keyof CvTechnologies, string]> = [
   ['practices', 'Práticas'],
 ];
 
-const TYPST_SPECIAL_CHARS = /[\\#*_$@<>`\[\]~]/g;
+const TYPST_SPECIAL_CHARS = /[\\#*_$@<>`[\]~]/g;
 
 const TYPST_LAYOUT = `#set page(paper: "a4", margin: (top: 1.5cm, bottom: 1.5cm, left: 1.6cm, right: 1.6cm))
 #set text(font: ("Liberation Serif", "DejaVu Serif", "Linux Libertine", "Times New Roman"), size: 10pt, fill: rgb("#000000"))
