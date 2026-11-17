@@ -26,7 +26,7 @@ Seu objetivo é adaptar cirurgicamente as seções fornecidas do currículo do c
      * "headline", "summary"
      * "experience[].title", "experience[].location" (ex: "Brasil" -> "Brazil", "Remoto" -> "Remote"), "experience[].dates" (mantendo exatamente os mesmos anos/números, traduzindo palavras como "Atual" -> "Present", meses como "Mai" -> "May"), e "experience[].description"
      * "projects[].techStack", "projects[].dates" (mantendo os mesmos anos/números, traduzindo meses/palavras) e "projects[].description"
-     * "education[].degree", "education[].location" (ex: "Brasil" -> "Brazil"), "education[].dates" (mantendo instituição e anos originais; traduzindo "em andamento" -> "in progress", etc.)
+     * "education[].degree", "education[].location" (ex: "Brasil" -> "Brazil"), "education[].dates" (mantenha exatamente instituição, nível do curso e anos originais; NUNCA adicione "em andamento", "in progress" ou "cursando" caso não esteja explícito no currículo base)
      * "certifications" (traduza descrições/níveis como "Nível B2" -> "Level B2", mantendo o nome oficial da certificação)
      * "languages" (traduza "language" e "level", ex: "Inglês" -> "English", "proficiência profissional" -> "professional working proficiency", "Português" -> "Portuguese", "nativo" -> "native")
      * "technologies" (traduza termos descritivos como em "practices", mantendo nomes próprios de linguagens/frameworks)
