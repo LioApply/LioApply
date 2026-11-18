@@ -1,60 +1,7 @@
-import type {
-  ChatProviderConfig,
-  ClassifierProvider,
-  ClassifierResolution,
-  LlmMessage,
-} from '../../../interfaces/classifier/classifier.interface';
-import {
-  type ClassifierProviderConfig,
-  GeminiClassifierClient,
-  NativeSystemOneHttpClient,
-  OpenAiCompatibleClassifierClient,
-  postJson,
-} from '../classifier-clients';
-
-export type ProviderProtocol = 'openai-compatible' | 'gemini' | 'jev';
-
-export interface ProviderDefinition {
-  id: string;
-  protocol: ProviderProtocol;
-  label: string;
-  baseUrl: string;
-  model: string;
-  chatModel?: string;
-  keyEnvs?: string[];
-  urlEnvs?: string[];
-  modelEnvs?: string[];
-  requiresKey?: boolean;
-  headers?: Record<string, string>;
-  supportsChat?: boolean;
-}
-
-export type ProviderOverrideEntry = Partial<ProviderDefinition> & { apiKeyEnv?: string };
-
-interface ResolvedEndpoint {
-  apiKey: string;
-  model: string;
-  baseUrl: string;
-}
-
-interface ProtocolAdapter {
-  createClient(def: ProviderDefinition, r: ResolvedEndpoint): ClassifierResolution;
-  chatCompletion?(messages: LlmMessage[], cfg: ChatProviderConfig): Promise<string>;
-}
-
-const firstEnv = (names: string[] = []): string =>
-  names.map((n) => process.env[n]).find(Boolean) || '';
-
-async function postChatJson<T>(
-  url: string,
-  headers: Record<string, string>,
-  body: unknown,
-  label: string,
-): Promise<T> {
-  const res = await postJson(url, headers, body);
-  if (!res.ok) throw new Error(`Erro na API do ${label} (${res.status}): ${await res.text()}`);
-  return (await res.json()) as T;
-}
+import { type ChatProviderConfig, type ClassifierProvider, type ClassifierResolution, type LlmMessage, type ClassifierProviderConfig, type ProtocolAdapter, type ProviderDefinition, type ProviderProtocol, type ResolvedEndpoint } from '../../../interfaces/classifier/classifier.interface';
+import { GeminiClassifierClient, NativeSystemOneHttpClient, OpenAiCompatibleClassifierClient } from '../classifier-clients';
+import { firstEnv } from '../../../utils/env';
+import { postChatJson } from '../../../utils/http';
 
 const PROTOCOL_ADAPTERS: Record<ProviderProtocol, ProtocolAdapter> = {
   'openai-compatible': {

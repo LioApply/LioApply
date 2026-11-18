@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { promisify } from 'util';
-import { findExistingFile } from '../../config/yaml-config.loader';
+import { findExistingFile } from '../../utils/yaml';
 
 const execFileAsync = promisify(execFile);
 

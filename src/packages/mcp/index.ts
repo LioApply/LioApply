@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as readline from 'readline';
 import { LioApplyOptions, NormalizedCandidateJob, createLioApply } from '../core';
 import { typstCvEngine } from '../cv';
+import { DEFAULT_JOB_TITLE } from '../../utils/defaults';
 
 export interface McpToolDefinition {
   name: string;
@@ -125,7 +126,7 @@ export function createLioApplyMcpServer(options?: LioApplyOptions) {
 
         case 'lioapply_optimize_cv': {
           const res = await lio.optimizeCv({
-            title: String(args.title || 'Desenvolvedor de Software'),
+            title: String(args.title || DEFAULT_JOB_TITLE),
             company: args.company ? String(args.company) : undefined,
             description: String(args.description || ''),
             outputPath: args.outputPath ? String(args.outputPath) : undefined,

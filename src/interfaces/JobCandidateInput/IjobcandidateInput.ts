@@ -13,3 +13,13 @@ export interface JevFitEvaluation {
   isJobOfferProbability: number;
   reason: string;
 }
+
+export interface JobIdentity {
+  title: string;
+  company?: string;
+}
+
+export interface NormalizedCandidateJob extends JobCandidateInput {
+  company: string;
+  url: string;
+}

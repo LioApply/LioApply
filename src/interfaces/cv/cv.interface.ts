@@ -1,3 +1,5 @@
+import type { ClassifierProviderType } from '../classifier/classifier.interface';
+
 export interface CvContactInfo {
   email: string;
   phone?: string;
@@ -94,11 +96,45 @@ export interface TailoredCvEvaluation {
   summaryReason: string;
 }
 
-export type CvLlmProviderType = string;
+export type CvLlmProviderType = ClassifierProviderType;
 
 export interface CvOptimizationConfig {
   provider?: CvLlmProviderType;
   model?: string;
   baseUrl?: string;
   baseCvPath: string;
+}
+
+export type SupportedCvLanguage = 'pt' | 'en' | 'es';
+
+export interface CvOptimizationResult {
+  pdfBuffer: Buffer;
+  fileName: string;
+  evaluation: TailoredCvEvaluation;
+  tailoredCv: BaseCvData;
+}
+
+export interface CvSendOptions {
+  sendWhatsapp?: boolean;
+  recipientNumber?: string;
+  instanceName?: string;
+}
+
+export interface JobPageMetadata {
+  title: string;
+  company?: string;
+  description: string;
+}
+
+/** Minimal job posting data used to tailor a CV / audit it. */
+export interface JobPostingInfo {
+  title: string;
+  company?: string;
+  description: string;
+}
+
+/** Job posting data with optional stored identity, used by the CV optimization pipeline. */
+export interface CvJobInput extends JobPostingInfo {
+  id?: number;
+  url?: string;
 }

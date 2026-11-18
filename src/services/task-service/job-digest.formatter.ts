@@ -1,20 +1,9 @@
 import { Injectable } from '@nestjs/common';
-
-export interface ApprovedJobDto {
-  id?: number;
-  title?: string;
-  company?: string;
-  score: number;
-  reason: string;
-  url: string;
-  previewText: string;
-}
+import type { ApprovedJobDto } from '../../interfaces/job-digest/job-digest.interface';
+import { escapeWhatsappMarkdown } from '../../utils/text';
 
 const MAX_DIGEST_JOBS = 15;
 const MAX_DIGEST_CHARS = 3800;
-
-const escapeWhatsappMarkdown = (text: string): string =>
-  text.replace(/([_*~`])/g, '\\$1');
 
 @Injectable()
 export class JobDigestFormatter {

@@ -1,34 +1,16 @@
 import { Logger } from '@nestjs/common';
-import { BaseCvData, CvTailoredPatchDto, TailoredCvEvaluation } from '../interfaces/cv/cv.interface';
+import { BaseCvData, CvTailoredPatchDto, TailoredCvEvaluation, type JobPostingInfo } from '../interfaces/cv/cv.interface';
 import { JevFitEvaluation, JobCandidateInput } from '../interfaces/JobCandidateInput/IjobcandidateInput';
+import type { NoulCriteria, NoulQuestion, SystemOneClient, UserProfileCriteria } from '../interfaces/classifier/system-one.interface';
+import { COMPANY_NOT_INFORMED } from './defaults';
 
 const logger = new Logger('SystemOneClassifier');
 
-export interface NoulCriteria { true: string; false: string }
-export interface NoulQuestion { type: 'noul'; instructions: string; criteria: NoulCriteria }
 export const noul = (instructions: string, criteria: NoulCriteria): NoulQuestion => ({
   type: 'noul',
   instructions,
   criteria,
 });
-
-export interface SystemOneRequest<Q extends Record<string, NoulQuestion> = Record<string, NoulQuestion>> {
-  state: Record<string, unknown>;
-  questions: Q;
-}
-export interface SystemOneResponse<Q extends Record<string, NoulQuestion> = Record<string, NoulQuestion>> {
-  answers: { [K in keyof Q]: { noul: number } };
-}
-export interface SystemOneClient {
-  systemOne<Q extends Record<string, NoulQuestion>>(request: SystemOneRequest<Q>): Promise<SystemOneResponse<Q>>;
-}
-export interface UserProfileCriteria {
-  targetRoles: string[];
-  targetTechnologies: string[];
-  acceptableLevels: string[];
-  excludedLevels: string[];
-  locations: string[];
-}
 
 export const JOB_FIT_QUESTIONS = {
   matches_profile: noul(
@@ -172,7 +154,7 @@ export async function evaluateTailoredCvWithJev(
   client: SystemOneClient,
   baseCv: BaseCvData,
   tailoredPatch: CvTailoredPatchDto,
-  jobInfo: { title: string; company?: string; description: string },
+  jobInfo: JobPostingInfo,
 ): Promise<TailoredCvEvaluation> {
   try {
     const { languages = '', frontend = '', backend = '', databases = '', devops = '' } = tailoredPatch.technologies || {};
@@ -180,7 +162,7 @@ export async function evaluateTailoredCvWithJev(
       state: {
         target_job: {
           title: jobInfo.title,
-          company: jobInfo.company || 'Não informada',
+          company: jobInfo.company || COMPANY_NOT_INFORMED,
           description: jobInfo.description.substring(0, 1500),
         },
         original_companies: baseCv.experience.map((e) => e.company),

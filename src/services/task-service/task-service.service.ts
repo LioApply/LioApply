@@ -2,7 +2,8 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { LIOAPPLY_INSTANCE, type LioApplyInstance } from '@lioapply/core';
 import { JobHistoryRepository } from '../../repositories/job-history.repository';
 import { WhatsappService } from '../whatsapp-service/whatsapp-service.service';
-import { ApprovedJobDto, JobDigestFormatter } from './job-digest.formatter';
+import { JobDigestFormatter } from './job-digest.formatter';
+import { ApprovedJobDto } from '../../interfaces/job-digest/job-digest.interface';
 
 @Injectable()
 export class TaskService {

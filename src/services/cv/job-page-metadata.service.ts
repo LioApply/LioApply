@@ -1,16 +1,9 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import * as cheerio from 'cheerio';
-import { Browser, BrowserContext, chromium, Page } from 'playwright';
-import { applyLightweightStealth, CHROMIUM_ARGS } from '../../utils/browser';
-
-export interface JobPageMetadata {
-  title: string;
-  company?: string;
-  description: string;
-}
-
-const USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+import { Browser, BrowserContext, Page } from 'playwright';
+import { applyLightweightStealth, launchChromium, DEFAULT_USER_AGENT } from '../../utils/browser';
+import type { JobPageMetadata } from '../../interfaces/cv/cv.interface';
+import { collapseSpaces } from '../../utils/text';
 
 const DESCRIPTION_SELECTORS = [
   '[class*="description__text"]',
@@ -24,8 +17,6 @@ const DESCRIPTION_SELECTORS = [
   '[class*="description"]',
   'body',
 ];
-
-const collapseSpaces = (value: string): string => value.replace(/\s+/g, ' ').trim();
 
 /** Fetches a job posting page (shared headless browser) and extracts title/company/description. */
 @Injectable()
@@ -46,7 +37,7 @@ export class JobPageMetadataService implements OnModuleDestroy {
     try {
       this.logger.log(`🌐 Extraindo HTML da vaga via Playwright: ${url}`);
       const browser = await this.getSharedBrowser();
-      context = await browser.newContext({ userAgent: USER_AGENT, viewport: { width: 1280, height: 720 } });
+      context = await browser.newContext({ userAgent: DEFAULT_USER_AGENT, viewport: { width: 1280, height: 720 } });
       await applyLightweightStealth(context);
 
       page = await context.newPage();
@@ -103,12 +94,7 @@ export class JobPageMetadataService implements OnModuleDestroy {
 
   private getSharedBrowser(): Promise<Browser> {
     if (!this.browserPromise) {
-      this.browserPromise = chromium
-        .launch({
-          headless: true,
-          executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
-          args: CHROMIUM_ARGS,
-        })
+      this.browserPromise = launchChromium()
         .then((browser) => {
           browser.on?.('disconnected', () => {
             this.browserPromise = null;

@@ -1,4 +1,6 @@
-import { LlmProvider, type ProviderDefinition, type ProviderOverrideEntry } from './llm-provider';
+import { LlmProvider } from './llm-provider';
+import { type ProviderDefinition, type ProviderOverrideEntry } from '../../../interfaces/classifier/classifier.interface';
+export { type ProviderDefinition, type ProviderOverrideEntry, type ProviderProtocol } from '../../../interfaces/classifier/classifier.interface';
 
 export const CLASSIFIER_PROVIDERS = 'CLASSIFIER_PROVIDERS';
 
@@ -82,9 +84,4 @@ export function createProviders(overrides?: Record<string, ProviderOverrideEntry
   return Array.from(defs.values()).map((def) => new LlmProvider(def));
 }
 
-export {
-  LlmProvider,
-  type ProviderDefinition,
-  type ProviderOverrideEntry,
-  type ProviderProtocol,
-} from './llm-provider';
+export { LlmProvider } from './llm-provider';

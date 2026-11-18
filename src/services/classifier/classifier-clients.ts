@@ -1,35 +1,12 @@
-import {
-  clampProbability,
-  extractJsonObject,
-  NoulQuestion,
-  SystemOneClient,
-  SystemOneRequest,
-  SystemOneResponse,
-} from '../../utils/jev';
-
-export type ClassifierProviderType = string;
-
-export interface ClassifierProviderConfig {
-  provider: ClassifierProviderType;
-  apiKey?: string;
-  model?: string;
-  baseUrl?: string;
-}
+import { clampProbability, extractJsonObject } from '../../utils/jev';
+import { NoulQuestion, SystemOneClient, SystemOneRequest, SystemOneResponse } from '../../interfaces/classifier/system-one.interface';
+import { postJson, sleep } from '../../utils/http';
 
 const SYSTEM_ONE_PROMPT =
   'You are a non-conversational System-One NLI probability classifier. Evaluate `state` against each question in `questions` using its `true` and `false` criteria anchors. Respond ONLY with a flat JSON object mapping each exact question key to a calibrated probability float between 0.00 and 1.00. Never output explanations, prose, or markdown.';
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const isReasoningModel = (model: string) =>
   /gpt-oss|\bo[134](?:-|$)|deepseek-r1|\bqwq\b|qwen3|thinking|reasoning/i.test(model);
-
-export const postJson = (url: string, headers: Record<string, string>, body: unknown, timeoutMs = 30000) =>
-  fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(timeoutMs),
-  });
 
 export function buildCompactClassifierPayload<Q extends Record<string, NoulQuestion>>(
   request: SystemOneRequest<Q>,

@@ -3,9 +3,10 @@ import * as path from 'path';
 import { ILocationOption, IProviderConfig } from '../interfaces/isearch/isearch.interface';
 import { AppJobConfig } from '../interfaces/job-config/job-config.interface';
 import { resolveProviders } from '../packages/providers';
-import { ClassifierProviderConfig } from '../services/classifier/classifier-clients';
-import { UserProfileCriteria } from '../utils/jev';
-import { arr, csv, loadYamlFromFile } from './yaml-config.loader';
+import { ClassifierProviderConfig } from '../interfaces/classifier/classifier.interface';
+import { UserProfileCriteria } from '../interfaces/classifier/system-one.interface';
+import { arr, csv } from '../utils/collections';
+import { loadYamlFromFile } from '../utils/yaml';
 
 @Injectable()
 export class JobConfigService implements OnModuleInit {

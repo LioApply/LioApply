@@ -10,7 +10,7 @@ import { BaseCvData } from '../../interfaces/cv/cv.interface';
 import { CvConfigService } from './cv-config.service';
 import { parseCvCommand } from './cv-webhook.parser';
 import { JobPageMetadataService } from './job-page-metadata.service';
-import { detectJobLanguage } from './prompts/cv-ats.prompt';
+import { detectJobLanguage } from '../../utils/language';
 
 describe('CV Optimization Pipeline Services', () => {
   let templateService: TypstTemplateService;
@@ -126,17 +126,6 @@ describe('CV Optimization Pipeline Services', () => {
 
   describe('CvOptimizationService', () => {
     it('should parse /cv commands for job ID and custom input', () => {
-      const cvOptService = new CvOptimizationService(
-        {} as any,
-        {} as any,
-        {} as any,
-        {} as any,
-        templateService,
-        compilerService,
-        {} as any,
-        new JobPageMetadataService(),
-      );
-
       expect(parseCvCommand('/cv 42')).toEqual({
         type: 'jobId',
         jobId: 42,

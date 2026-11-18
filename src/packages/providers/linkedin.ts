@@ -2,6 +2,7 @@ import {
   ILocationOption,
   IProviderConfig,
 } from '../../interfaces/isearch/isearch.interface';
+import { mergeProviderOverrides } from '../../utils/provider';
 
 export const linkedinProvider: IProviderConfig = {
   name: 'linkedin',
@@ -23,14 +24,7 @@ export const linkedinProvider: IProviderConfig = {
 export function linkedin(
   overrides?: Partial<IProviderConfig>,
 ): IProviderConfig {
-  return {
-    ...linkedinProvider,
-    ...overrides,
-    selectors: {
-      ...linkedinProvider.selectors,
-      ...(overrides?.selectors || {}),
-    },
-  };
+  return mergeProviderOverrides(linkedinProvider, overrides);
 }
 
 export const createLinkedinProvider = linkedin;

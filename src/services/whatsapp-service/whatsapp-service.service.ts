@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CreateInstanceDto } from '../../interfaces/ICreateInstanceDTO/icreateinstancedto.interface';
 import { SendMediaDocumentDTO, SendMessageDTO } from '../../interfaces/SendMessageDTO';
+import { getEvolutionApiKey, getEvolutionBaseUrl } from '../../utils/evolution';
 
 @Injectable()
 export class WhatsappService {
@@ -42,8 +43,7 @@ export class WhatsappService {
     return result;
   }
 
-  private getBaseUrl = (): string => process.env.evolutionApiUrl || process.env.EVOLUTION_API_URL || '';
-  private getApiKey = (): string => process.env.apiKey || process.env.AUTHENTICATION_API_KEY || '';
+  private getBaseUrl = (): string => getEvolutionBaseUrl();
 
   private async request<T = unknown>(
     method: 'GET' | 'POST',
@@ -55,7 +55,7 @@ export class WhatsappService {
     if (!baseUrl) {
       throw new Error('EVOLUTION_API_URL (ou evolutionApiUrl) não configurada.');
     }
-    const apiKey = this.getApiKey();
+    const apiKey = getEvolutionApiKey();
     if (!apiKey) {
       throw new Error('AUTHENTICATION_API_KEY (ou apiKey) da Evolution API não configurada.');
     }

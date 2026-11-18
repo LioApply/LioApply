@@ -1,26 +1,14 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { ChatProviderConfig, ClassifierProvider } from '../../interfaces/classifier/classifier.interface';
-import { BaseCvData, CvTailoredPatchDto } from '../../interfaces/cv/cv.interface';
+import { BaseCvData, CvTailoredPatchDto, type JobPostingInfo } from '../../interfaces/cv/cv.interface';
 import { extractJsonObject } from '../../utils/jev';
 import { CLASSIFIER_PROVIDERS, createProviders } from '../classifier/providers';
 import { CvConfigService } from './cv-config.service';
 import { buildAtsCvOptimizationPrompt } from './prompts/cv-ats.prompt';
+import { cleanList, nonEmpty } from '../../utils/text';
+import { preserveTranslatedDate } from '../../utils/cv';
 
 const AUTO_ORDER = ['groq', 'gemini', 'openrouter'];
-const nonEmpty = (val: unknown, fallback?: string) => (typeof val === 'string' && val.trim() ? val.trim() : fallback);
-const cleanList = (val: unknown, fallback: string[] = []) =>
-  Array.isArray(val) ? val.map((d) => String(d).trim()).filter(Boolean) : fallback;
-const preserveTranslatedDate = (candidate: unknown, original?: string): string => {
-  const next = nonEmpty(candidate);
-  if (!next) return original || '';
-  if (!original) return next;
-  const origYears: string[] = original.match(/\b\d{4}\b/g) || [];
-  const nextYears: string[] = next.match(/\b\d{4}\b/g) || [];
-  const yearsConsistent =
-    origYears.length === 0 || (nextYears.length > 0 && nextYears.every((y) => origYears.includes(y)));
-  return yearsConsistent ? next : original;
-};
-
 @Injectable()
 export class CvLlmService {
   private readonly logger = new Logger(CvLlmService.name);
@@ -35,7 +23,7 @@ export class CvLlmService {
 
   async generateTailoredCvPatch(
     baseCv: BaseCvData,
-    jobInfo: { title: string; company?: string; description: string },
+    jobInfo: JobPostingInfo,
   ): Promise<CvTailoredPatchDto> {
     const { provider, config } = this.resolveProviderAndConfig();
     const messages = buildAtsCvOptimizationPrompt(baseCv, jobInfo);

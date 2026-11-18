@@ -23,13 +23,16 @@ src/
   │     └── mcp/           # @lioapply/mcp (Official Model Context Protocol JSON-RPC 2.0 server over stdio)
   ├── database/
   │     └── schema.ts            # Drizzle ORM table definitions, constraints and indexes
-  ├── interfaces/
-  │     ├── isearch/             # LinkedIn search query definitions and shapes
-  │     ├── glassdoor-search/    # Glassdoor search query definitions and shapes
-  │     └── job-config/          # Declarative YAML search and user profile configuration shapes
+  ├── interfaces/              # ALL shared types/DTOs live here (never declare interfaces inside services/utils)
+  │     ├── isearch/             # Provider/search shapes (IProviderConfig, ILocationOption, ScrapeTask)
+  │     ├── classifier/          # Classifier provider contracts + System-One types (UserProfileCriteria, NoulQuestion, ...)
+  │     ├── cv/                  # CV data, CvOptimizationResult, CvSendOptions, JobPostingInfo, webhook command types
+  │     ├── job-config/          # Declarative YAML configuration shapes (+ YamlLoadResult)
+  │     ├── job-digest/          # ApprovedJobDto (WhatsApp digest input)
+  │     ├── job-history/         # StoredJobRecord, JobToPersist (PostgreSQL history)
+  │     └── JobCandidateInput/   # JobCandidateInput, NormalizedCandidateJob, JobIdentity
   ├── config/
   │     ├── providers.ts         # Scraper provider builders and CSS selectors
-  │     ├── yaml-config.loader.ts# Shared pure YAML/Base64/file loader helpers
   │     └── job-config.service.ts# Declarative YAML/ENV search, profile & classifier configuration loader (Config Layer)
   ├── services/
   │     ├── cv/                  # On-demand ATS CV optimization (CvConfigService, Multi-provider LLM, Typst PDF compiler,
@@ -43,9 +46,21 @@ src/
   │           ├── job-history.repository.ts # Drizzle ORM PostgreSQL repository (Data Layer)
   │           └── task-service.service.ts   # Pipeline Orchestration (Application Layer)
   ├── main.ts                    # One-shot bootstrap: runs pipeline and exits
-  └── utils/
+  └── utils/                   # Pure, framework-agnostic helpers (no Nest/DI state)
+        ├── browser.ts           # Chromium launch/args, default user-agent, lightweight stealth
+        ├── collections.ts       # csv, arr, nonEmptyArr, pickNonEmptyRecord
+        ├── cv.ts                # buildSafePdfFileName, preserveTranslatedDate
         ├── deduplication.ts     # Title and company deduplication logic & injectable service
-        └── jev.ts               # TypeSafe Jev evaluation primitives (Noul / fit)
+        ├── defaults.ts          # Neutral fallbacks (DEFAULT_JOB_TITLE, COMPANY_NOT_INFORMED)
+        ├── env.ts               # firstEnv
+        ├── evolution.ts         # Evolution API base URL / API key resolution
+        ├── http.ts              # sleep, postJson, postChatJson
+        ├── jev.ts               # TypeSafe Jev evaluation primitives (Noul / fit)
+        ├── language.ts          # detectJobLanguage (pt/en/es)
+        ├── provider.ts          # mergeProviderOverrides (provider preset + user overrides)
+        ├── text.ts              # collapseSpaces, nonEmpty, cleanList, escapeWhatsappMarkdown
+        ├── typst.ts             # escapeTypst, escapeTypstStringLiteral
+        └── yaml.ts              # findExistingFile, parseYamlObject, loadYamlFromFile
 ```
 
 ### Core Architecture & SOLID Principles:

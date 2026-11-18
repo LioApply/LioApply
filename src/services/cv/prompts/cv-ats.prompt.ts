@@ -1,6 +1,7 @@
-import { BaseCvData, CvSectionTitles, CvTechnologies } from '../../../interfaces/cv/cv.interface';
-
-export type SupportedCvLanguage = 'pt' | 'en' | 'es';
+import { BaseCvData, CvSectionTitles, CvTechnologies, type SupportedCvLanguage, type JobPostingInfo } from '../../../interfaces/cv/cv.interface';
+import type { LlmMessage } from '../../../interfaces/classifier/classifier.interface';
+import { detectJobLanguage } from '../../../utils/language';
+import { COMPANY_NOT_INFORMED } from '../../../utils/defaults';
 
 export const SECTION_TITLES_BY_LANG: Record<SupportedCvLanguage, CvSectionTitles> = {
   pt: {
@@ -65,47 +66,6 @@ const LANG_DISPLAY: Record<SupportedCvLanguage, string> = {
   es: 'Español (Spanish)',
 };
 
-export function detectJobLanguage(text: string): SupportedCvLanguage {
-  const lower = (text || '').toLowerCase();
-  const tokens = lower.match(/[\p{L}]+/gu) || [];
-  const freq = new Map<string, number>();
-  for (const token of tokens) {
-    freq.set(token, (freq.get(token) || 0) + 1);
-  }
-  const countWords = (words: string[]) => words.reduce((acc, w) => acc + (freq.get(w) || 0), 0);
-
-  const enScore = countWords([
-    'the', 'and', 'with', 'for', 'you', 'will', 'are', 'our', 'requirements', 'experience',
-    'responsibilities', 'skills', 'about', 'your', 'have', 'from', 'this', 'looking', 'we',
-    'position', 'candidate', 'qualifications', 'benefits', 'salary',
-  ]);
-  const ptScore =
-    countWords([
-      'para', 'com', 'que', 'uma', 'dos', 'das', 'nos', 'nas', 'como', 'requisitos',
-      'experiência', 'responsabilidades', 'vaga', 'empresa', 'trabalho', 'equipe',
-      'desenvolvedor', 'engenheiro', 'remoto', 'híbrido', 'benefícios', 'sobre', 'você',
-      'nosso', 'nossa', 'conhecimento', 'conhecimentos', 'buscamos', 'anos', 'atuação',
-      'atividades', 'diferenciais', 'salário', 'contratação', 'candidato', 'oportunidade',
-    ]) + (lower.match(/[ãõç]/g)?.length || 0);
-  const esScore =
-    countWords([
-      'para', 'con', 'que', 'una', 'los', 'las', 'como', 'requisitos', 'experiencia',
-      'responsabilidades', 'puesto', 'empresa', 'trabajo', 'equipo', 'desarrollador',
-      'ingeniero', 'remoto', 'híbrido', 'beneficios', 'sobre', 'nosotros', 'nuestro',
-      'conocimientos', 'buscamos', 'años',
-    ]) + (lower.match(/[ñ¿¡]/g)?.length || 0) * 2;
-
-  if (ptScore >= enScore && ptScore >= esScore && ptScore > 0) return 'pt';
-  if (esScore > ptScore && esScore > enScore) return 'es';
-  if (enScore > ptScore && enScore >= esScore && enScore > 0) return 'en';
-  return 'pt';
-}
-
-export interface LlmChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
-
 const SYSTEM_PROMPT = `Você é um especialista sênior em engenharia de currículos para sistemas ATS (Gupy, Greenhouse, Lever, Workday) com restrição rigorosa de credibilidade factual para triagem técnica humana.
 
 Seu objetivo é adaptar cirurgicamente as seções fornecidas do currículo do candidato para maximizar a pontuação de match na vaga alvo, SEM inventar empresas, datas ou cargos inexistentes e SEM gerar texto robótico ou inverossímil.
@@ -155,8 +115,8 @@ const OUTPUT_SCHEMA_HINT = `{
 
 export function buildAtsCvOptimizationPrompt(
   baseCv: BaseCvData,
-  jobInfo: { title: string; company?: string; description: string },
-): LlmChatMessage[] {
+  jobInfo: JobPostingInfo,
+): LlmMessage[] {
   const { headline, summary, experience, projects, education, certifications, languages, technologies, techLabels, sectionTitles } = baseCv;
   const targetLang = detectJobLanguage(`${jobInfo.title}\n${jobInfo.description}`);
   const targetLangDisplay = LANG_DISPLAY[targetLang];
@@ -172,7 +132,7 @@ ${strictTranslationDirective}
 
 ### DADOS DA VAGA ALVO:
 - Cargo: ${jobInfo.title}
-- Empresa: ${jobInfo.company || 'Não informada'}
+- Empresa: ${jobInfo.company || COMPANY_NOT_INFORMED}
 - Descrição / Requisitos:
 ${jobInfo.description}
 

@@ -1,23 +1,11 @@
 import { Inject, Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { JobConfigService } from '../../config/job-config.service';
-import { ClassifierProvider } from '../../interfaces/classifier/classifier.interface';
+import { ClassifierProvider, ClassifierProviderConfig, ClassifierProviderType, type JobEvaluationResult } from '../../interfaces/classifier/classifier.interface';
 import { JobCandidateInput } from '../../interfaces/JobCandidateInput/IjobcandidateInput';
-import { BaseCvData, CvTailoredPatchDto, TailoredCvEvaluation } from '../../interfaces/cv/cv.interface';
-import {
-  evaluateJobFitWithJev,
-  evaluateJobsBatchWithSystemOne,
-  evaluateTailoredCvWithJev,
-  SystemOneClient,
-  UserProfileCriteria,
-} from '../../utils/jev';
-import { ClassifierProviderConfig, ClassifierProviderType } from './classifier-clients';
+import { BaseCvData, CvTailoredPatchDto, TailoredCvEvaluation, type JobPostingInfo } from '../../interfaces/cv/cv.interface';
+import { evaluateJobFitWithJev, evaluateJobsBatchWithSystemOne, evaluateTailoredCvWithJev } from '../../utils/jev';
 import { CLASSIFIER_PROVIDERS, createProviders } from './providers';
-
-export interface JobEvaluationResult {
-  shouldApply: boolean;
-  score: number;
-  reason: string;
-}
+import { SystemOneClient, UserProfileCriteria } from '../../interfaces/classifier/system-one.interface';
 
 const AUTO_PRIORITY: ClassifierProviderType[] = ['groq', 'gemini', 'openrouter', 'jev'];
 const unconfiguredResult = (reason = 'Classificador não configurado (chave ausente).'): JobEvaluationResult => ({
@@ -152,7 +140,7 @@ export class ClassifierService implements OnModuleInit {
   async evaluateTailoredCv(
     baseCv: BaseCvData,
     tailoredPatch: CvTailoredPatchDto,
-    jobInfo: { title: string; company?: string; description: string },
+    jobInfo: JobPostingInfo,
   ): Promise<TailoredCvEvaluation> {
     const client = this.ensureClient();
     if (!client) {

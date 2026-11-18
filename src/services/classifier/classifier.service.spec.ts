@@ -1,11 +1,12 @@
 import { JobConfigService } from '../../config/job-config.service';
-import { JOB_FIT_QUESTIONS, noul, UserProfileCriteria } from '../../utils/jev';
+import { JOB_FIT_QUESTIONS, noul } from '../../utils/jev';
 import {
   buildCompactClassifierPayload,
   OpenAiCompatibleClassifierClient,
   parseSystemOneJsonOutput,
 } from './classifier-clients';
 import { createClassifierService } from './classifier.service';
+import { UserProfileCriteria } from '../../interfaces/classifier/system-one.interface';
 
 describe('ClassifierService (System-One multi-provider)', () => {
   const sampleProfile: UserProfileCriteria = {

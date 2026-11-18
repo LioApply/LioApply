@@ -2,6 +2,7 @@ import {
   ILocationOption,
   IProviderConfig,
 } from '../../interfaces/isearch/isearch.interface';
+import { mergeProviderOverrides } from '../../utils/provider';
 
 export const remotarProvider: IProviderConfig = {
   name: 'remotar',
@@ -20,14 +21,7 @@ export const remotarProvider: IProviderConfig = {
 };
 
 export function remotar(overrides?: Partial<IProviderConfig>): IProviderConfig {
-  return {
-    ...remotarProvider,
-    ...overrides,
-    selectors: {
-      ...remotarProvider.selectors,
-      ...(overrides?.selectors || {}),
-    },
-  };
+  return mergeProviderOverrides(remotarProvider, overrides);
 }
 
 export const createRemotarProvider = remotar;

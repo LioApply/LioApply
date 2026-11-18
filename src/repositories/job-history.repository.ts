@@ -3,15 +3,7 @@ import { desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { sentJobs } from '../database/schema';
-
-export interface StoredJobRecord {
-  id?: number;
-  url: string;
-  title: string;
-  company?: string;
-  description?: string;
-  sent_at?: Date;
-}
+import { type StoredJobRecord, type JobToPersist } from '../interfaces/job-history/job-history.interface';
 
 const SUMMARY_FIELDS = {
   id: sentJobs.id,
@@ -99,10 +91,10 @@ export class JobHistoryRepository implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async save(jobs: { url: string; title: string; company?: string; description?: string }[]): Promise<StoredJobRecord[]> {
+  async save(jobs: JobToPersist[]): Promise<StoredJobRecord[]> {
     if (jobs.length === 0) return [];
     const db = this.ensureDb();
-    const deduped = new Map<string, { url: string; title: string; company?: string; description?: string }>();
+    const deduped = new Map<string, JobToPersist>();
     for (const job of jobs) {
       if (!job.url) continue;
       deduped.set(job.url, job);

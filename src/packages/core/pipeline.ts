@@ -3,19 +3,12 @@ import { JobConfigService } from '../../config/job-config.service';
 import { IProviderConfig } from '../../interfaces/isearch/isearch.interface';
 import { ClassifierService } from '../../services/classifier/classifier.service';
 import { JobDigestFormatter } from '../../services/task-service/job-digest.formatter';
-import {
-  JobDeduplicationService,
-  NormalizedCandidateJob,
-  normalizeScrapedPost,
-} from '../../utils/deduplication';
-import {
-  buildUserCriteriaState,
-  JOB_FIT_QUESTIONS,
-  toJobCandidateState,
-  UserProfileCriteria,
-} from '../../utils/jev';
+import { JobDeduplicationService, normalizeScrapedPost } from '../../utils/deduplication';
+import { buildUserCriteriaState, JOB_FIT_QUESTIONS, toJobCandidateState } from '../../utils/jev';
 import { PlaywrightService, resolveProviders } from '../providers';
 import { ApprovedCandidateJobDto, ScrapeJobsParams, SearchAndClassifyOutput } from './types';
+import { UserProfileCriteria } from '../../interfaces/classifier/system-one.interface';
+import { NormalizedCandidateJob } from '../../interfaces/JobCandidateInput/IjobcandidateInput';
 
 export interface PipelineDeps {
   configService: JobConfigService;

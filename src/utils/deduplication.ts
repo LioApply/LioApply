@@ -1,19 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { ScrapedPost } from '../interfaces/ScrapedPost/iscrapedpost.interface';
-
-export interface JobIdentity {
-  title: string;
-  company?: string;
-}
-
-export interface NormalizedCandidateJob {
-  title: string;
-  company: string;
-  text: string;
-  location?: string;
-  url: string;
-}
+import type { JobIdentity, NormalizedCandidateJob } from '../interfaces/JobCandidateInput/IjobcandidateInput';
 
 export function normalizeScrapedPost(post: ScrapedPost): NormalizedCandidateJob | null {
   const text = (post.text || '').trim();

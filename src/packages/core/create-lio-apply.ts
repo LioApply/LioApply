@@ -1,8 +1,7 @@
 import { JobConfigService } from '../../config/job-config.service';
 import { createClassifierService } from '../../services/classifier/classifier.service';
 import { JobDigestFormatter } from '../../services/task-service/job-digest.formatter';
-import { JobDeduplicationService, NormalizedCandidateJob } from '../../utils/deduplication';
-import { UserProfileCriteria } from '../../utils/jev';
+import { JobDeduplicationService } from '../../utils/deduplication';
 import { PlaywrightService, resolveProviders } from '../providers';
 import {
   buildSystemOneRubricState,
@@ -18,6 +17,9 @@ import {
   LioApplyOptions,
   ScrapeJobsParams,
 } from './types';
+import { UserProfileCriteria } from '../../interfaces/classifier/system-one.interface';
+import { NormalizedCandidateJob } from '../../interfaces/JobCandidateInput/IjobcandidateInput';
+import { DEFAULT_JOB_TITLE } from '../../utils/defaults';
 
 /** Functional SDK (`@lioapply/core`): Composable LioApply automation instance. */
 export function createLioApply(options?: LioApplyOptions) {
@@ -72,7 +74,7 @@ export function createLioApply(options?: LioApplyOptions) {
       const description =
         ('description' in job && job.description) || ('previewText' in job ? job.previewText : '');
       return options.cv.optimizeForJob({
-        title: job.title || 'Desenvolvedor de Software',
+        title: job.title || DEFAULT_JOB_TITLE,
         company: job.company,
         description,
         outputPath: 'outputPath' in job ? job.outputPath : undefined,

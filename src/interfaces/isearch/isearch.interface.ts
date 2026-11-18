@@ -31,3 +31,9 @@ export interface Isearch {
   location?: ILocationOption[];
   sortBy?: 'relevance' | 'date';
 }
+
+export interface ScrapeTask {
+  provider: IProviderConfig;
+  query: string;
+  locOption: ILocationOption;
+}

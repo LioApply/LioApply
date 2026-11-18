@@ -1,8 +1,7 @@
 import { ILocationOption } from '../isearch/isearch.interface';
-import { UserProfileCriteria } from '../../utils/jev';
 import { CvOptimizationConfig } from '../cv/cv.interface';
-import { ClassifierProviderConfig } from '../../services/classifier/classifier-clients';
-import type { ProviderOverrideEntry } from '../../services/classifier/providers';
+import { UserProfileCriteria } from '../classifier/system-one.interface';
+import { ClassifierProviderConfig, ProviderOverrideEntry } from '../classifier/classifier.interface';
 
 export interface AppJobConfig {
   search: {

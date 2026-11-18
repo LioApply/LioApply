@@ -1,15 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as cheerio from 'cheerio';
-import { Browser, BrowserContext, chromium, Page } from 'playwright';
-import { ILocationOption, IProviderConfig, Isearch } from '../../interfaces/isearch/isearch.interface';
+import { Browser, BrowserContext, Page } from 'playwright';
+import { ILocationOption, IProviderConfig, Isearch, type ScrapeTask } from '../../interfaces/isearch/isearch.interface';
 import { ScrapedPost } from '../../interfaces/ScrapedPost/iscrapedpost.interface';
-import { applyLightweightStealth, CHROMIUM_ARGS } from '../../utils/browser';
-
-interface ScrapeTask {
-  provider: IProviderConfig;
-  query: string;
-  locOption: ILocationOption;
-}
+import { applyLightweightStealth, launchChromium, DEFAULT_USER_AGENT } from '../../utils/browser';
 
 @Injectable()
 export class PlaywrightService {
@@ -27,16 +21,11 @@ export class PlaywrightService {
   }
 
   async startBrowser(): Promise<{ browser: Browser; context: BrowserContext }> {
-    const browser = await chromium.launch({
-      headless: true,
-      executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
-      args: CHROMIUM_ARGS,
-    });
+    const browser = await launchChromium();
 
     try {
       const context = await browser.newContext({
-        userAgent:
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        userAgent: DEFAULT_USER_AGENT,
         viewport: { width: 1280, height: 720 },
         locale: 'pt-BR',
         timezoneId: 'America/Sao_Paulo',

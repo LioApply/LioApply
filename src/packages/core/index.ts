@@ -1,3 +1,7 @@
+export { type NormalizedCandidateJob } from '../../interfaces/JobCandidateInput/IjobcandidateInput';
+export { type JobEvaluationResult, type ProviderDefinition, type ProviderOverrideEntry, type ProviderProtocol, type ClassifierProviderConfig, type ClassifierProviderType } from '../../interfaces/classifier/classifier.interface';
+export { type ApprovedJobDto } from '../../interfaces/job-digest/job-digest.interface';
+export { type NoulQuestion, type SystemOneClient, type SystemOneRequest, type SystemOneResponse, type UserProfileCriteria } from '../../interfaces/classifier/system-one.interface';
 export { createLioApply, type LioApplyInstance } from './create-lio-apply';
 export { LioApplyCoreService } from './core.service';
 export { LioApplyCoreModule } from './core.module';
@@ -13,48 +17,13 @@ export {
 } from './types';
 
 export { JobConfigService } from '../../config/job-config.service';
-export {
-  JobDeduplicationService,
-  normalizeScrapedPost,
-  type NormalizedCandidateJob,
-} from '../../utils/deduplication';
-export {
-  ClassifierService,
-  createClassifierService,
-  type JobEvaluationResult,
-} from '../../services/classifier/classifier.service';
-export {
-  BUILTIN_PROVIDER_PRESETS,
-  LlmProvider,
-  createProviders,
-  type ProviderDefinition,
-  type ProviderOverrideEntry,
-  type ProviderProtocol,
-} from '../../services/classifier/providers';
+export { JobDeduplicationService, normalizeScrapedPost } from '../../utils/deduplication';
+export { ClassifierService, createClassifierService } from '../../services/classifier/classifier.service';
+export { BUILTIN_PROVIDER_PRESETS, LlmProvider, createProviders } from '../../services/classifier/providers';
 export type {
   ClassifierProvider,
   ClassifierResolution,
 } from '../../interfaces/classifier/classifier.interface';
-export {
-  JobDigestFormatter,
-  type ApprovedJobDto,
-} from '../../services/task-service/job-digest.formatter';
-export {
-  buildCompactClassifierPayload,
-  parseSystemOneJsonOutput,
-  type ClassifierProviderConfig,
-  type ClassifierProviderType,
-} from '../../services/classifier/classifier-clients';
-export {
-  noul,
-  JOB_FIT_QUESTIONS,
-  buildJobFitEvaluationFromProbabilities,
-  evaluateJobFitWithJev,
-  evaluateJobsBatchWithSystemOne,
-  evaluateTailoredCvWithJev,
-  type NoulQuestion,
-  type SystemOneClient,
-  type SystemOneRequest,
-  type SystemOneResponse,
-  type UserProfileCriteria,
-} from '../../utils/jev';
+export { JobDigestFormatter } from '../../services/task-service/job-digest.formatter';
+export { buildCompactClassifierPayload, parseSystemOneJsonOutput } from '../../services/classifier/classifier-clients';
+export { noul, JOB_FIT_QUESTIONS, buildJobFitEvaluationFromProbabilities, evaluateJobFitWithJev, evaluateJobsBatchWithSystemOne, evaluateTailoredCvWithJev } from '../../utils/jev';

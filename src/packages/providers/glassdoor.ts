@@ -2,6 +2,7 @@ import {
   ILocationOption,
   IProviderConfig,
 } from '../../interfaces/isearch/isearch.interface';
+import { mergeProviderOverrides } from '../../utils/provider';
 
 export const glassdoorProvider: IProviderConfig = {
   name: 'glassdoor',
@@ -38,14 +39,7 @@ export const glassdoorProvider: IProviderConfig = {
 export function glassdoor(
   overrides?: Partial<IProviderConfig>,
 ): IProviderConfig {
-  return {
-    ...glassdoorProvider,
-    ...overrides,
-    selectors: {
-      ...glassdoorProvider.selectors,
-      ...(overrides?.selectors || {}),
-    },
-  };
+  return mergeProviderOverrides(glassdoorProvider, overrides);
 }
 
 export const createGlassdoorProvider = glassdoor;

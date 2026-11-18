@@ -1,33 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import {
-  BaseCvData,
-  CvEducationItem,
-  CvExperienceItem,
-  CvLanguageItem,
-  CvProjectItem,
-  CvSectionTitles,
-  CvTailoredPatchDto,
-  CvTechnologies,
-} from '../../interfaces/cv/cv.interface';
-import {
-  SECTION_TITLES_BY_LANG,
-  SupportedCvLanguage,
-  TECH_LABELS_BY_LANG,
-} from './prompts/cv-ats.prompt';
+import { BaseCvData, CvEducationItem, CvExperienceItem, CvLanguageItem, CvProjectItem, CvSectionTitles, CvTailoredPatchDto, CvTechnologies, SupportedCvLanguage } from '../../interfaces/cv/cv.interface';
+import { SECTION_TITLES_BY_LANG, TECH_LABELS_BY_LANG } from './prompts/cv-ats.prompt';
+import { nonEmpty } from '../../utils/text';
+import { nonEmptyArr, pickNonEmptyRecord } from '../../utils/collections';
+import { escapeTypst as escapeTypstText, escapeTypstStringLiteral as escapeTypstLiteral } from '../../utils/typst';
 
 const DEFAULT_SECTION_TITLES: CvSectionTitles = SECTION_TITLES_BY_LANG.pt;
 
-const TECH_LABELS: Array<[keyof CvTechnologies, string]> = [
-  ['languages', 'Linguagens'],
-  ['frontend', 'Frontend'],
-  ['backend', 'Backend'],
-  ['databases', 'Bancos de Dados'],
-  ['devops', 'Cloud & DevOps'],
-  ['aiAndTools', 'IA & Ferramentas'],
-  ['practices', 'Práticas'],
-];
-
-const TYPST_SPECIAL_CHARS = /[\\#*_$@<>`[\]~]/g;
+const TECH_LABELS = Object.entries(TECH_LABELS_BY_LANG.pt) as Array<[keyof CvTechnologies, string]>;
 
 const TYPST_LAYOUT = `#set page(paper: "a4", margin: (top: 1.5cm, bottom: 1.5cm, left: 1.6cm, right: 1.6cm))
 #set text(font: ("Liberation Serif", "DejaVu Serif", "Linux Libertine", "Times New Roman"), size: 10pt, fill: rgb("#000000"))
@@ -45,38 +25,6 @@ const TYPST_LAYOUT = `#set page(paper: "a4", margin: (top: 1.5cm, bottom: 1.5cm,
   grid(columns: (1fr, auto), column-gutter: 12pt, align: (left, right), left-content, right-content)
 }`;
 
-const sanitizeFilePart = (value: string, fallback: string): string =>
-  (value || fallback)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .substring(0, 35);
-
-export const buildSafePdfFileName = (candidateName: string, targetSuffix: string): string =>
-  `Curriculo_${sanitizeFilePart(candidateName, 'Candidato')}_${sanitizeFilePart(targetSuffix, 'Vaga')}.pdf`;
-
-const nonEmpty = (val: string | undefined, fallback?: string): string | undefined =>
-  val?.trim() ? val.trim() : fallback;
-
-const nonEmptyArr = <T>(val: T[] | undefined, fallback: T[]): T[] =>
-  Array.isArray(val) && val.length > 0 ? val : fallback;
-
-const pickNonEmptyRecord = <T extends Record<string, string | undefined>>(
-  rec: T | undefined,
-  blockedValues?: Set<string>,
-): Partial<T> => {
-  if (!rec || typeof rec !== 'object') return {};
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(rec)) {
-    const trimmed = typeof v === 'string' ? v.trim() : '';
-    if (!trimmed) continue;
-    if (blockedValues?.has(trimmed.toLowerCase())) continue;
-    out[k] = trimmed;
-  }
-  return out as Partial<T>;
-};
-
 const PT_UNTRANSLATED_LABELS = new Set(
   [
     ...Object.values(SECTION_TITLES_BY_LANG.pt),
@@ -87,19 +35,11 @@ const PT_UNTRANSLATED_LABELS = new Set(
 @Injectable()
 export class TypstTemplateService {
   escapeTypst(value: string | undefined | null): string {
-    if (!value) return '';
-    return String(value)
-      .replace(TYPST_SPECIAL_CHARS, (ch) => `\\${ch}`)
-      .replace(/\/\//g, '\\/\\/')
-      .replace(/\/\*/g, '\\/*')
-      .replace(/\*\//g, '*\\/')
-      .trim();
+    return escapeTypstText(value);
   }
 
   escapeTypstStringLiteral(value: string | undefined | null): string {
-    return value
-      ? String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ').trim()
-      : '';
+    return escapeTypstLiteral(value);
   }
 
   /** Preserves immutable fields (name, contact) while applying tailored/translated sections. */

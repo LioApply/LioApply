@@ -2,11 +2,11 @@ import {
   ILocationOption,
   IProviderConfig,
 } from '../../interfaces/isearch/isearch.interface';
-import { ClassifierProviderConfig } from '../../services/classifier/classifier-clients';
-import { ApprovedJobDto } from '../../services/task-service/job-digest.formatter';
-import { NormalizedCandidateJob } from '../../utils/deduplication';
-import { UserProfileCriteria } from '../../utils/jev';
 import { BuiltinProviderName } from '../providers';
+import { ClassifierProviderConfig } from '../../interfaces/classifier/classifier.interface';
+import { ApprovedJobDto } from '../../interfaces/job-digest/job-digest.interface';
+import { UserProfileCriteria } from '../../interfaces/classifier/system-one.interface';
+import { NormalizedCandidateJob } from '../../interfaces/JobCandidateInput/IjobcandidateInput';
 
 export const LIOAPPLY_PROVIDERS = 'LIOAPPLY_PROVIDERS';
 export const LIOAPPLY_INSTANCE = 'LIOAPPLY_INSTANCE';

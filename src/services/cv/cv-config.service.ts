@@ -2,11 +2,8 @@ import { Injectable, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { JobConfigService } from '../../config/job-config.service';
-import {
-  findExistingFile,
-  parseYamlObject,
-} from '../../config/yaml-config.loader';
 import { BaseCvData, CvOptimizationConfig } from '../../interfaces/cv/cv.interface';
+import { findExistingFile, parseYamlObject } from '../../utils/yaml';
 
 @Injectable()
 export class CvConfigService {

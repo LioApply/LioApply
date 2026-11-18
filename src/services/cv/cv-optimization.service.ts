@@ -1,5 +1,5 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
-import { BaseCvData, TailoredCvEvaluation } from '../../interfaces/cv/cv.interface';
+import { TailoredCvEvaluation, type CvOptimizationResult, type CvSendOptions, type CvJobInput } from '../../interfaces/cv/cv.interface';
 import { JobHistoryRepository } from '../../repositories/job-history.repository';
 import { WhatsappService } from '../whatsapp-service/whatsapp-service.service';
 import { ClassifierService } from '../classifier/classifier.service';
@@ -7,22 +7,10 @@ import { CvConfigService } from './cv-config.service';
 import { CvLlmService } from './cv-llm.service';
 import { parseCvCommand, parseEvolutionWebhook } from './cv-webhook.parser';
 import { JobPageMetadataService } from './job-page-metadata.service';
-import { detectJobLanguage } from './prompts/cv-ats.prompt';
 import { TypstCompilerService } from './typst-compiler.service';
-import { buildSafePdfFileName, TypstTemplateService } from './typst-template.service';
-
-export interface CvOptimizationResult {
-  pdfBuffer: Buffer;
-  fileName: string;
-  evaluation: TailoredCvEvaluation;
-  tailoredCv: BaseCvData;
-}
-
-export interface CvSendOptions {
-  sendWhatsapp?: boolean;
-  recipientNumber?: string;
-  instanceName?: string;
-}
+import { TypstTemplateService } from './typst-template.service';
+import { detectJobLanguage } from '../../utils/language';
+import { buildSafePdfFileName } from '../../utils/cv';
 
 @Injectable()
 export class CvOptimizationService {
@@ -83,7 +71,7 @@ export class CvOptimizationService {
   }
 
   async optimizeForJobInput(
-    jobInfo: { id?: number; title: string; company?: string; description: string; url?: string },
+    jobInfo: CvJobInput,
     options?: CvSendOptions,
   ): Promise<CvOptimizationResult> {
     this.logger.log(

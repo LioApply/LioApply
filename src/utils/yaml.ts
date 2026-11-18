@@ -1,16 +1,6 @@
 import * as fs from 'fs';
 import * as YAML from 'yaml';
-
-export interface YamlLoadResult<T> {
-  data: T;
-  source: string;
-}
-
-export const csv = (value?: string): string[] =>
-  value ? value.split(',').map((s) => s.trim()).filter(Boolean) : [];
-
-export const arr = <T>(value: unknown): T[] =>
-  Array.isArray(value) ? (value as T[]) : [];
+import type { YamlLoadResult } from '../interfaces/job-config/yaml-load.interface';
 
 export const findExistingFile = (candidates: Array<string | undefined>): string | undefined =>
   candidates.filter((c): c is string => Boolean(c)).find((c) => fs.existsSync(c));

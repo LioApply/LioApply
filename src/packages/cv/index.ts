@@ -1,20 +1,15 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
-import {
-  BaseCvData,
-  CvLlmProviderType,
-  CvOptimizationConfig,
-  CvTailoredPatchDto,
-  TailoredCvEvaluation,
-} from '../../interfaces/cv/cv.interface';
+import { BaseCvData, CvLlmProviderType, CvOptimizationConfig, CvTailoredPatchDto, TailoredCvEvaluation, CvOptimizationResult } from '../../interfaces/cv/cv.interface';
 import { createClassifierService } from '../../services/classifier/classifier.service';
 import { CvConfigService } from '../../services/cv/cv-config.service';
 import { CvLlmService } from '../../services/cv/cv-llm.service';
-import { detectJobLanguage } from '../../services/cv/prompts/cv-ats.prompt';
-import { CvOptimizationResult, CvOptimizationService } from '../../services/cv/cv-optimization.service';
+import { CvOptimizationService } from '../../services/cv/cv-optimization.service';
 import { TypstCompilerService } from '../../services/cv/typst-compiler.service';
-import { buildSafePdfFileName, TypstTemplateService } from '../../services/cv/typst-template.service';
+import { TypstTemplateService } from '../../services/cv/typst-template.service';
+import { detectJobLanguage } from '../../utils/language';
+import { buildSafePdfFileName } from '../../utils/cv';
 
 export interface CvEngineOptions {
   baseCv?: string | BaseCvData;

@@ -6,10 +6,11 @@ import { AppModule } from './app.module';
 import { createLioApplyMcpServer } from './packages/mcp';
 import { CvOptimizationService } from './services/cv/cv-optimization.service';
 import { TaskService } from './services/task-service/task-service.service';
+import { getEvolutionApiKey, getEvolutionBaseUrl } from './utils/evolution';
 
 async function registerEvolutionWebhook(port: number, logger: Logger) {
-  const baseUrl = process.env.evolutionApiUrl || process.env.EVOLUTION_API_URL || 'http://localhost:8080';
-  const apiKey = process.env.apiKey || process.env.AUTHENTICATION_API_KEY;
+  const baseUrl = getEvolutionBaseUrl('http://localhost:8080');
+  const apiKey = getEvolutionApiKey();
   const instanceName = process.env.INSTANCE_NAME;
 
   if (!apiKey || !instanceName) {
