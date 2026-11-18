@@ -13,12 +13,10 @@ import { CvOptimizationService } from './services/cv/cv-optimization.service';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({ isGlobal: true }),
     LioApplyCoreModule.register({
       providers: [linkedin(), glassdoor(), remotar()],
-      cv: typstCvEngine({
-        baseCv: process.env.CV_BASE_PATH || './cv.base.yaml',
-      }),
+      cv: typstCvEngine(process.env.CV_BASE_PATH ? { baseCv: process.env.CV_BASE_PATH } : undefined),
     }),
     LioApplyCvModule.register(),
   ],

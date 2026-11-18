@@ -61,8 +61,14 @@ export async function runScrapeAndDeduplicate(
   deps: PipelineDeps,
   params?: ScrapeJobsParams,
 ): Promise<{ rawCount: number; uniqueCandidates: NormalizedCandidateJob[] }> {
-  const queries = params?.queries || deps.configService.getQueries();
-  const locations = params?.locations || deps.configService.getLocations();
+  const queries = params?.queries ?? deps.configService.getQueries();
+  const locations = params?.locations ?? deps.configService.getLocations();
+  if (!queries.length) {
+    throw new Error('Nenhuma query de busca informada (passe params.queries ou configure jobs.config.yaml).');
+  }
+  if (!locations.length) {
+    throw new Error('Nenhuma localização informada (passe params.locations ou configure jobs.config.yaml).');
+  }
   const providersToUse = params?.providers ? resolveProviders(params.providers) : deps.defaultProviders;
 
   deps.logger?.log(

@@ -20,7 +20,17 @@ const CHROMIUM_ARGS = [
 @Injectable()
 export class PlaywrightService {
   private readonly logger = new Logger(PlaywrightService.name);
-  private readonly defaultConcurrency = Number(process.env.SCRAPER_CONCURRENCY || 3);
+  private readonly defaultConcurrency = this.parseConcurrency(process.env.SCRAPER_CONCURRENCY);
+
+  private parseConcurrency(raw?: string): number {
+    if (!raw) return 3;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      this.logger.warn(`SCRAPER_CONCURRENCY inválido ("${raw}"); usando fallback 1.`);
+      return 1;
+    }
+    return Math.floor(parsed);
+  }
 
   async startBrowser(): Promise<{ browser: Browser; context: BrowserContext }> {
     const browser = await chromium.launch({
@@ -29,24 +39,29 @@ export class PlaywrightService {
       args: CHROMIUM_ARGS,
     });
 
-    const context = await browser.newContext({
-      userAgent:
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      viewport: { width: 1280, height: 720 },
-      locale: 'pt-BR',
-      timezoneId: 'America/Sao_Paulo',
-    });
+    try {
+      const context = await browser.newContext({
+        userAgent:
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        viewport: { width: 1280, height: 720 },
+        locale: 'pt-BR',
+        timezoneId: 'America/Sao_Paulo',
+      });
 
-    await context.addInitScript(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-    });
+      await context.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      });
 
-    await context.route('**/*', (route) => {
-      const type = route.request().resourceType();
-      return ['image', 'media', 'font'].includes(type) ? route.abort() : route.continue();
-    });
+      await context.route('**/*', (route) => {
+        const type = route.request().resourceType();
+        return ['image', 'media', 'font'].includes(type) ? route.abort() : route.continue();
+      });
 
-    return { browser, context };
+      return { browser, context };
+    } catch (error) {
+      await browser.close().catch(() => undefined);
+      throw error;
+    }
   }
 
   isLocationSupported(provider: IProviderConfig, locOption: ILocationOption): boolean {
@@ -93,7 +108,8 @@ export class PlaywrightService {
   private async runWorkerPool(context: BrowserContext, tasks: ScrapeTask[], concurrency: number): Promise<ScrapedPost[]> {
     const allJobs: ScrapedPost[] = [];
     let taskIndex = 0;
-    const workerCount = Math.min(Math.max(1, concurrency), tasks.length);
+    const safeConcurrency = Number.isFinite(concurrency) && concurrency >= 1 ? Math.floor(concurrency) : 1;
+    const workerCount = Math.min(safeConcurrency, tasks.length);
 
     await Promise.all(
       Array.from({ length: workerCount }, async () => {
@@ -133,7 +149,7 @@ export class PlaywrightService {
       this.logger.error(`Erro no scrape da combinação [${provider.name} | ${query}]:`, err);
       return [];
     } finally {
-      await page.close();
+      await page.close().catch(() => undefined);
     }
   }
 

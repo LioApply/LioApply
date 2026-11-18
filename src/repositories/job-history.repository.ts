@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { desc, eq, gte, sql } from 'drizzle-orm';
+import { desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { sentJobs } from '../database/schema';
@@ -43,7 +43,14 @@ export class JobHistoryRepository implements OnModuleInit, OnModuleDestroy {
   private db: NodePgDatabase<{ sentJobs: typeof sentJobs }>;
 
   async onModuleInit() {
-    this.pool = new Pool({ connectionString: process.env.DATABASE_URL || process.env.DATABASE_CONNECTION_URI });
+    this.pool = new Pool({
+      connectionString: process.env.DATABASE_URL || process.env.DATABASE_CONNECTION_URI,
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
+    });
+    this.pool.on('error', (err) => {
+      this.logger.error('Erro inesperado em cliente ocioso do pool PostgreSQL:', err);
+    });
     this.db = drizzle(this.pool, { schema: { sentJobs } });
     try {
       await this.pool.query(SCHEMA_DDL);
@@ -58,38 +65,58 @@ export class JobHistoryRepository implements OnModuleInit, OnModuleDestroy {
     await this.pool?.end();
   }
 
+  private ensureDb() {
+    if (!this.db) {
+      throw new Error('JobHistoryRepository não inicializado (onModuleInit não executado).');
+    }
+    return this.db;
+  }
+
   async getRecentJobs(limit = 60, days = 30): Promise<StoredJobRecord[]> {
-    return this.safeQuery('Erro ao buscar histórico recente de vagas:', [], async () => {
+    const db = this.ensureDb();
+    try {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - days);
-      const rows = await this.db
+      const rows = await db
         .select(SUMMARY_FIELDS)
         .from(sentJobs)
         .where(gte(sentJobs.sent_at, cutoffDate))
         .orderBy(desc(sentJobs.sent_at))
         .limit(limit);
       return rows.map((row) => this.toStoredRecord(row));
-    });
+    } catch (error) {
+      this.logger.error('Erro ao buscar histórico recente de vagas:', error);
+      throw error;
+    }
   }
 
   async getJobById(id: number): Promise<StoredJobRecord | null> {
     if (!id || Number.isNaN(id)) return null;
+    const db = this.ensureDb();
     return this.safeQuery(`Erro ao buscar vaga por ID (${id}):`, null, async () => {
-      const [row] = await this.db.select(FULL_FIELDS).from(sentJobs).where(eq(sentJobs.id, id)).limit(1);
+      const [row] = await db.select(FULL_FIELDS).from(sentJobs).where(eq(sentJobs.id, id)).limit(1);
       return row ? this.toStoredRecord(row, true) : null;
     });
   }
 
   async save(jobs: { url: string; title: string; company?: string; description?: string }[]): Promise<StoredJobRecord[]> {
     if (jobs.length === 0) return [];
-    return this.safeQuery('Erro ao persistir vagas no banco com Drizzle:', [], async () => {
-      const values = jobs.map((j) => ({
+    const db = this.ensureDb();
+    const deduped = new Map<string, { url: string; title: string; company?: string; description?: string }>();
+    for (const job of jobs) {
+      if (!job.url) continue;
+      deduped.set(job.url, job);
+    }
+    if (deduped.size === 0) return [];
+
+    try {
+      const values = Array.from(deduped.values()).map((j) => ({
         url: j.url,
         nome_vaga: j.title,
         company: j.company || '',
         description: j.description || '',
       }));
-      const inserted = await this.db
+      const inserted = await db
         .insert(sentJobs)
         .values(values)
         .onConflictDoUpdate({
@@ -102,9 +129,18 @@ export class JobHistoryRepository implements OnModuleInit, OnModuleDestroy {
         })
         .returning(FULL_FIELDS);
 
-      this.logger.log(`💾 ${jobs.length} vagas persistidas no banco com Drizzle.`);
+      this.logger.log(`💾 ${inserted.length} vagas persistidas no banco com Drizzle.`);
       return inserted.map((row) => this.toStoredRecord(row, true));
-    });
+    } catch (error) {
+      this.logger.error('Erro ao persistir vagas no banco com Drizzle:', error);
+      throw error;
+    }
+  }
+
+  async deleteByIds(ids: number[]): Promise<void> {
+    if (ids.length === 0) return;
+    const db = this.ensureDb();
+    await db.delete(sentJobs).where(inArray(sentJobs.id, ids));
   }
 
   private async safeQuery<T>(errorMsg: string, fallback: T, query: () => Promise<T>): Promise<T> {

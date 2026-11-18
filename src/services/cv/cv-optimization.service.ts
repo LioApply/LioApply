@@ -1,6 +1,6 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, Optional } from '@nestjs/common';
 import * as cheerio from 'cheerio';
-import { chromium } from 'playwright';
+import { Browser, BrowserContext, chromium, Page } from 'playwright';
 import { BaseCvData, TailoredCvEvaluation } from '../../interfaces/cv/cv.interface';
 import { JobHistoryRepository } from '../../repositories/job-history.repository';
 import { BotService } from '../bot/bot.service';
@@ -18,9 +18,16 @@ export interface CvOptimizationResult {
   tailoredCv: BaseCvData;
 }
 
+export interface CvSendOptions {
+  sendWhatsapp?: boolean;
+  recipientNumber?: string;
+  instanceName?: string;
+}
+
 @Injectable()
-export class CvOptimizationService {
+export class CvOptimizationService implements OnModuleDestroy {
   private readonly logger = new Logger(CvOptimizationService.name);
+  private browserPromise: Promise<Browser> | null = null;
 
   constructor(
     private readonly cvConfigService: CvConfigService,
@@ -32,10 +39,14 @@ export class CvOptimizationService {
     @Optional() private readonly botService: BotService,
   ) {}
 
-  async optimizeForStoredJobId(
-    jobId: number,
-    options?: { sendWhatsapp?: boolean; recipientNumber?: string },
-  ): Promise<CvOptimizationResult> {
+  async onModuleDestroy() {
+    if (!this.browserPromise) return;
+    const browser = await this.browserPromise.catch(() => null);
+    this.browserPromise = null;
+    await browser?.close().catch(() => undefined);
+  }
+
+  async optimizeForStoredJobId(jobId: number, options?: CvSendOptions): Promise<CvOptimizationResult> {
     const storedJob = await this.historyRepository.getJobById(jobId);
     if (!storedJob) throw new Error(`Vaga [#${jobId}] não encontrada no histórico do banco de dados.`);
 
@@ -51,10 +62,7 @@ export class CvOptimizationService {
     );
   }
 
-  async optimizeForCustomInput(
-    rawInput: string,
-    options?: { sendWhatsapp?: boolean; recipientNumber?: string },
-  ): Promise<CvOptimizationResult> {
+  async optimizeForCustomInput(rawInput: string, options?: CvSendOptions): Promise<CvOptimizationResult> {
     const trimmed = rawInput.trim();
     let title = 'Software Developer';
     let company: string | undefined;
@@ -83,7 +91,7 @@ export class CvOptimizationService {
 
   async optimizeForJobInput(
     jobInfo: { id?: number; title: string; company?: string; description: string; url?: string },
-    options?: { sendWhatsapp?: boolean; recipientNumber?: string },
+    options?: CvSendOptions,
   ): Promise<CvOptimizationResult> {
     this.logger.log(
       `📄 Enviando vaga ao LLM: título="${jobInfo.title}" | descrição=${jobInfo.description.length} chars`,
@@ -111,6 +119,8 @@ export class CvOptimizationService {
 
   async handleEvolutionWebhook(payload: Record<string, unknown>) {
     const eventData = (Array.isArray(payload?.data) ? payload.data[0] : payload?.data || payload) as Record<string, any>;
+    if (eventData?.key?.fromMe === true) return { status: 'ignored', reason: 'fromMe' };
+
     const msg = (eventData?.message || payload?.message || {}) as Record<string, any>;
     const text = msg?.conversation || msg?.extendedTextMessage?.text || payload?.text || '';
     const command = this.parseCvCommand(String(text));
@@ -131,7 +141,7 @@ export class CvOptimizationService {
     );
 
     try {
-      const opts = { sendWhatsapp: true, recipientNumber: senderNumber };
+      const opts: CvSendOptions = { sendWhatsapp: true, recipientNumber: senderNumber, instanceName };
       const result =
         command.type === 'jobId'
           ? await this.optimizeForStoredJobId(command.jobId, opts)
@@ -165,11 +175,11 @@ export class CvOptimizationService {
     fileName: string,
     pdfBuffer: Buffer,
     evaluation: TailoredCvEvaluation,
-    options?: { sendWhatsapp?: boolean; recipientNumber?: string },
+    options?: CvSendOptions,
   ): Promise<void> {
     const targetNumber = options?.recipientNumber || process.env.WHATSAPP_NUMBER;
-    const instanceName = process.env.INSTANCE_NAME;
-    if (!(options?.sendWhatsapp ?? true) || !targetNumber || !instanceName) return;
+    const instanceName = options?.instanceName || process.env.INSTANCE_NAME;
+    if (!(options?.sendWhatsapp ?? true) || !targetNumber || !instanceName || !this.botService) return;
 
     const idTag = jobInfo.id ? `[#${jobInfo.id}] ` : '';
     const companyTag = jobInfo.company ? ` (${jobInfo.company})` : '';
@@ -189,16 +199,35 @@ export class CvOptimizationService {
     });
   }
 
+  private getSharedBrowser(): Promise<Browser> {
+    if (!this.browserPromise) {
+      this.browserPromise = chromium
+        .launch({
+          headless: true,
+          executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-blink-features=AutomationControlled'],
+        })
+        .then((browser) => {
+          browser.on?.('disconnected', () => {
+            this.browserPromise = null;
+          });
+          return browser;
+        })
+        .catch((err) => {
+          this.browserPromise = null;
+          throw err;
+        });
+    }
+    return this.browserPromise;
+  }
+
   private async fetchJobPageMetadata(url: string): Promise<{ title: string; company?: string; description: string }> {
-    let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+    let context: BrowserContext | undefined;
+    let page: Page | undefined;
     try {
       this.logger.log(`🌐 Extraindo HTML da vaga via Playwright: ${url}`);
-      browser = await chromium.launch({
-        headless: true,
-        executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-blink-features=AutomationControlled'],
-      });
-      const context = await browser.newContext({
+      const browser = await this.getSharedBrowser();
+      context = await browser.newContext({
         userAgent:
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         viewport: { width: 1280, height: 720 },
@@ -211,7 +240,7 @@ export class CvOptimizationService {
         return ['image', 'media', 'font'].includes(type) ? route.abort() : route.continue();
       });
 
-      const page = await context.newPage();
+      page = await context.newPage();
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
       await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => undefined);
       const html = await page.content();
@@ -220,7 +249,8 @@ export class CvOptimizationService {
       this.logger.warn(`⚠️ Falha ao extrair vaga via Playwright (${url}): ${error instanceof Error ? error.message : error}`);
       return { title: '', description: '' };
     } finally {
-      await browser?.close().catch(() => undefined);
+      await page?.close().catch(() => undefined);
+      await context?.close().catch(() => undefined);
     }
   }
 

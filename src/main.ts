@@ -24,6 +24,7 @@ async function registerEvolutionWebhook(port: number, logger: Logger) {
     const response = await fetch(`${baseUrl}/webhook/set/${instanceName}`, {
       method: 'POST',
       headers: { apikey: apiKey, 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(10000),
       body: JSON.stringify({
         webhook: { enabled: true, url: webhookUrl, byEvents: false, base64: false, events: ['MESSAGES_UPSERT'] },
       }),
@@ -65,12 +66,13 @@ async function bootstrap() {
   const args = process.argv.slice(2);
 
   if (args.includes('--mcp')) {
-    createLioApplyMcpServer().startStdio();
+    await createLioApplyMcpServer().startStdio();
     return;
   }
 
   if (args.includes('--listen')) {
     const httpApp = await NestFactory.create(AppModule);
+    httpApp.enableShutdownHooks();
     const port = Number(process.env.PORT || 3000);
     await httpApp.listen(port, '0.0.0.0');
     logger.log(`🎧 Receptor de comandos WhatsApp (/webhook/evolution) ativo em 0.0.0.0:${port}.`);
@@ -79,6 +81,7 @@ async function bootstrap() {
   }
 
   let app: INestApplicationContext | undefined;
+  let exitCode = 0;
   try {
     app = await NestFactory.createApplicationContext(AppModule);
     const cvFlagIndex = args.findIndex((arg) => arg === '--cv' || arg.startsWith('--cv='));
@@ -90,12 +93,13 @@ async function bootstrap() {
     logger.log('🚀 Container iniciado — executando pipeline de scraping...');
     await app.get(TaskService).runScrapeJob();
   } catch (error) {
+    exitCode = 1;
     logger.error('❌ Erro fatal no pipeline:', error);
-    await app?.close();
-    process.exit(1);
   } finally {
-    await app?.close();
-    process.exit(0);
+    await app?.close().catch((closeErr) => {
+      logger.warn(`⚠️ Erro ao encerrar aplicação: ${closeErr instanceof Error ? closeErr.message : closeErr}`);
+    });
+    process.exit(exitCode);
   }
 }
 bootstrap();

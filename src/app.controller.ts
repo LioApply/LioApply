@@ -29,8 +29,11 @@ export class AppController {
   }
 
   @Post('message/sendText/:instanceName')
-  sendMessage(@Body() data: SendMessageDTO) {
-    return this.whatsappService.sendMessage(data);
+  sendMessage(@Param('instanceName') instanceName: string, @Body() data: SendMessageDTO) {
+    return this.whatsappService.sendMessage({
+      ...data,
+      instanceName: data.instanceName || instanceName,
+    });
   }
 
   @Post('webhook/evolution')

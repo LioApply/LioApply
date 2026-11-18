@@ -43,6 +43,7 @@ export class WhatsappService {
   }
 
   private getBaseUrl = (): string => process.env.evolutionApiUrl || process.env.EVOLUTION_API_URL || '';
+  private getApiKey = (): string => process.env.apiKey || process.env.AUTHENTICATION_API_KEY || '';
 
   private async request<T = unknown>(
     method: 'GET' | 'POST',
@@ -50,11 +51,21 @@ export class WhatsappService {
     errorPrefix: string,
     payload?: unknown,
   ): Promise<T> {
+    const baseUrl = this.getBaseUrl();
+    if (!baseUrl) {
+      throw new Error('EVOLUTION_API_URL (ou evolutionApiUrl) não configurada.');
+    }
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error('AUTHENTICATION_API_KEY (ou apiKey) da Evolution API não configurada.');
+    }
+
     try {
-      const response = await fetch(`${this.getBaseUrl()}${endpoint}`, {
+      const response = await fetch(`${baseUrl}${endpoint}`, {
         method,
+        signal: AbortSignal.timeout(15000),
         headers: {
-          apikey: process.env.apiKey!,
+          apikey: apiKey,
           ...(payload !== undefined ? { 'Content-Type': 'application/json' } : {}),
         },
         ...(payload !== undefined ? { body: JSON.stringify(payload) } : {}),
@@ -66,7 +77,12 @@ export class WhatsappService {
         this.logger.error(`❌ ${message}`);
         throw new Error(message);
       }
-      return body ? (JSON.parse(body) as T) : (undefined as T);
+      if (!body) return undefined as T;
+      try {
+        return JSON.parse(body) as T;
+      } catch {
+        return body as unknown as T;
+      }
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       this.logger.error(`❌ Fetch falhou: ${err.message}`, err.stack);

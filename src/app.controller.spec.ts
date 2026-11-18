@@ -87,10 +87,22 @@ describe('AppController', () => {
       };
       whatsappService.sendMessage.mockResolvedValue({ message: 'Sent' });
 
-      const result = await appController.sendMessage(data);
+      const result = await appController.sendMessage('test-instance', data);
 
       expect(whatsappService.sendMessage).toHaveBeenCalledWith(data);
       expect(result).toEqual({ message: 'Sent' });
+    });
+
+    it('should fallback to route :instanceName when omitted from body', async () => {
+      const data = { number: '5511999999999', text: 'Hello' } as SendMessageDTO;
+      whatsappService.sendMessage.mockResolvedValue({ message: 'Sent' });
+
+      await appController.sendMessage('route-instance', data);
+
+      expect(whatsappService.sendMessage).toHaveBeenCalledWith({
+        ...data,
+        instanceName: 'route-instance',
+      });
     });
   });
 

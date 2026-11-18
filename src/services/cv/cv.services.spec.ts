@@ -204,18 +204,22 @@ describe('CV Optimization Pipeline Services', () => {
         mockBotService as any,
       );
 
-      const res = await cvOptService.optimizeForStoredJobId(42);
+      try {
+        const res = await cvOptService.optimizeForStoredJobId(42);
 
-      expect(res.fileName).toContain('TechCorp.pdf');
-      expect(res.pdfBuffer.subarray(0, 4).toString('ascii')).toBe('%PDF');
-      expect(mockBotService.sendMediaDocument).toHaveBeenCalledTimes(1);
-      expect(mockBotService.sendMediaDocument).toHaveBeenCalledWith(
-        expect.objectContaining({
-          instanceName: 'job-bot',
-          number: '5579988043018',
-          fileName: res.fileName,
-        }),
-      );
+        expect(res.fileName).toContain('TechCorp.pdf');
+        expect(res.pdfBuffer.subarray(0, 4).toString('ascii')).toBe('%PDF');
+        expect(mockBotService.sendMediaDocument).toHaveBeenCalledTimes(1);
+        expect(mockBotService.sendMediaDocument).toHaveBeenCalledWith(
+          expect.objectContaining({
+            instanceName: 'job-bot',
+            number: '5579988043018',
+            fileName: res.fileName,
+          }),
+        );
+      } finally {
+        await cvOptService.onModuleDestroy();
+      }
     });
   });
 
@@ -349,6 +353,12 @@ describe('CV Optimization Pipeline Services', () => {
       );
 
       expect(await service.handleEvolutionWebhook({ text: 'olá' })).toEqual({ status: 'ignored' });
+      expect(
+        await service.handleEvolutionWebhook({
+          instance: 'bot',
+          data: { key: { fromMe: true, remoteJid: '5511999999999@s.whatsapp.net' }, message: { conversation: '/cv 7' } },
+        }),
+      ).toEqual({ status: 'ignored', reason: 'fromMe' });
 
       const spy = jest.spyOn(service, 'optimizeForStoredJobId').mockResolvedValue({
         pdfBuffer: Buffer.from('pdf'),
@@ -362,7 +372,7 @@ describe('CV Optimization Pipeline Services', () => {
         data: { key: { remoteJid: '5511999999999@s.whatsapp.net' }, message: { conversation: '/cv 7' } },
       });
 
-      expect(spy).toHaveBeenCalledWith(7, { sendWhatsapp: true, recipientNumber: '5511999999999' });
+      expect(spy).toHaveBeenCalledWith(7, { sendWhatsapp: true, recipientNumber: '5511999999999', instanceName: 'bot' });
       expect(botMock.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ instanceName: 'bot', number: '5511999999999' }));
       expect(res).toMatchObject({ status: 'completed', fileName: 'cv.pdf' });
     });

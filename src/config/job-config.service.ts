@@ -37,8 +37,8 @@ export class JobConfigService implements OnModuleInit {
     return (this.config = config);
   }
 
-  getQueries = (): string[] => this.config.search.queries;
-  getLocations = (): ILocationOption[] => this.config.search.locations;
+  getQueries = (): string[] => this.config?.search?.queries ?? [];
+  getLocations = (): ILocationOption[] => this.config?.search?.locations ?? [];
   getConfig = (): AppJobConfig => this.config;
 
   getProviders(): IProviderConfig[] {
@@ -47,7 +47,7 @@ export class JobConfigService implements OnModuleInit {
   }
 
   getUserProfile(): UserProfileCriteria {
-    const p = this.config.profile;
+    const p = this.config?.profile;
     return {
       targetRoles: p?.targetRoles || [],
       targetTechnologies: p?.targetTechnologies || [],

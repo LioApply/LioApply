@@ -64,7 +64,7 @@ export class ClassifierService implements OnModuleInit {
     const resolution = provider.createClient({
       provider: id,
       apiKey: process.env.CLASSIFIER_API_KEY,
-      model: yaml?.model,
+      model: process.env.CLASSIFIER_MODEL || yaml?.model,
       baseUrl: process.env.CLASSIFIER_BASE_URL || yaml?.baseUrl,
     });
     if (!resolution) return;

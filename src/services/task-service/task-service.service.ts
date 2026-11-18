@@ -28,6 +28,12 @@ export class TaskService {
       return [];
     }
 
+    const instanceName = process.env.INSTANCE_NAME;
+    const recipientNumber = process.env.WHATSAPP_NUMBER;
+    if (!instanceName || !recipientNumber) {
+      throw new Error('INSTANCE_NAME e WHATSAPP_NUMBER são obrigatórios para enviar o digest no WhatsApp.');
+    }
+
     const savedRecords =
       (await this.historyRepository.save(
         approvedJobs.map((job) => ({
@@ -44,12 +50,20 @@ export class TaskService {
       if (dbId) job.id = dbId;
     }
 
-    await this.botService.sendMessage({
-      instanceName: process.env.INSTANCE_NAME!,
-      number: process.env.WHATSAPP_NUMBER!,
-      text: this.digestFormatter.format(approvedJobs),
-      delay: 1500,
-    });
+    const savedIds = savedRecords.map((r) => r.id).filter((id): id is number => typeof id === 'number');
+    try {
+      await this.botService.sendMessage({
+        instanceName,
+        number: recipientNumber,
+        text: this.digestFormatter.format(approvedJobs),
+        delay: 1500,
+      });
+    } catch (error) {
+      if (savedIds.length > 0 && typeof this.historyRepository.deleteByIds === 'function') {
+        await this.historyRepository.deleteByIds(savedIds).catch(() => undefined);
+      }
+      throw error;
+    }
     return approvedJobs;
   }
 }

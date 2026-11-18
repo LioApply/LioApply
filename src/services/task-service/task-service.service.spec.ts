@@ -12,6 +12,8 @@ describe('TaskService', () => {
   let mockLioApply: { searchAndClassify: jest.Mock };
 
   beforeEach(async () => {
+    process.env.INSTANCE_NAME = 'test-instance';
+    process.env.WHATSAPP_NUMBER = '5511999999999';
     mockBotService = {
       sendMessage: jest.fn(),
     };
