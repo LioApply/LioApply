@@ -38,7 +38,15 @@ export class LioApplyCoreModule {
           },
           inject: [JobConfigService],
         },
-        ClassifierService,
+        {
+          provide: ClassifierService,
+          useFactory: (jobConfigService: JobConfigService, providers: ReturnType<typeof createProviders>) => {
+            const service = new ClassifierService(jobConfigService, providers);
+            service.initializeProvider(options?.classifier as any);
+            return service;
+          },
+          inject: [JobConfigService, CLASSIFIER_PROVIDERS],
+        },
         JobDigestFormatter,
         PlaywrightService,
         LioApplyCoreService,

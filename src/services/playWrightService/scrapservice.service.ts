@@ -131,7 +131,12 @@ export class PlaywrightService {
       const searchUrl = provider.buildSearchUrl(query, locOption);
       this.logger.log(`[${provider.name}] (${locOption.label || 'Busca'}) Navegando para: ${searchUrl}`);
 
-      await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+      const response = await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+      if (response && response.status() >= 400) {
+        this.logger.warn(
+          `[${provider.name}] HTTP ${response.status()} ao acessar ${searchUrl} (possível bloqueio/rate-limit/Cloudflare).`,
+        );
+      }
       await this.safeScroll(page, 300);
 
       try {

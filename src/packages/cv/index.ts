@@ -49,7 +49,12 @@ export function typstCvEngine(options?: CvEngineOptions) {
   if (baseCvPath) process.env.CV_BASE_PATH = baseCvPath;
 
   const cvConfigService = new CvConfigService();
-  const classifierService = createClassifierService();
+  const classifierService = createClassifierService(undefined, {
+    ...(options?.provider && options.provider !== 'auto' ? { provider: options.provider as any } : {}),
+    ...(apiKey ? { apiKey } : {}),
+    ...(model ? { model } : {}),
+    ...(options?.baseUrl ? { baseUrl: options.baseUrl } : {}),
+  });
   const llmService = new CvLlmService(cvConfigService);
   const templateService = new TypstTemplateService();
   const compilerService = new TypstCompilerService();
@@ -73,8 +78,19 @@ export function typstCvEngine(options?: CvEngineOptions) {
       );
       const fileName = buildSafePdfFileName(baseCv.name, jobInfo.company || jobInfo.title);
 
-      const targetOutput =
-        jobInfo.outputPath || (options?.outputDir ? path.resolve(options.outputDir, fileName) : undefined);
+      let targetOutput: string | undefined;
+      if (jobInfo.outputPath) {
+        const allowedBase = path.resolve(options?.outputDir || process.cwd());
+        const resolvedTarget = path.resolve(allowedBase, jobInfo.outputPath);
+        const rel = path.relative(allowedBase, resolvedTarget);
+        if (rel.startsWith('..') || path.isAbsolute(rel)) {
+          throw new Error(`Caminho outputPath inválido (fora do diretório permitido): ${jobInfo.outputPath}`);
+        }
+        targetOutput = resolvedTarget;
+      } else if (options?.outputDir) {
+        targetOutput = path.resolve(options.outputDir, fileName);
+      }
+
       if (targetOutput) {
         fs.mkdirSync(path.dirname(targetOutput), { recursive: true });
         fs.writeFileSync(targetOutput, pdfBuffer);

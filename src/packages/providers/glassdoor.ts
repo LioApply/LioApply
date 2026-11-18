@@ -10,24 +10,27 @@ export const glassdoorProvider: IProviderConfig = {
       location?.providerParams?.glassdoorLocationId ||
       location?.providerParams?.glassdoorGeoId;
     const icPart = locId ? `_IC${locId}` : '';
-    const locPart = location?.locationQuery ? `${location.locationQuery}-` : '';
-    const cleanQuery = encodeURIComponent(
-      query.toLowerCase().replace(/\s+/g, '-'),
-    );
+    const locSlug = location?.locationQuery ? location.locationQuery.trim().replace(/\s+/g, '-') : '';
+    const locPart = locSlug ? `${locSlug}-` : '';
+    const rawQuerySlug = query.trim().toLowerCase().replace(/\s+/g, '-');
+    const cleanQuery = encodeURIComponent(rawQuerySlug);
 
-    return `https://www.glassdoor.com.br/Vaga/${locPart}${cleanQuery}-vagas-SRCH_IL.0,15${icPart}.htm`;
+    if (locSlug) {
+      return `https://www.glassdoor.com.br/Vaga/${locPart}${cleanQuery}-vagas-SRCH_IL.0,${locSlug.length}${icPart}.htm`;
+    }
+    return `https://www.glassdoor.com.br/Vaga/${cleanQuery}-vagas-SRCH_KO0,${rawQuerySlug.length}${icPart}.htm`;
   },
   selectors: {
     container:
-      '[data-test="jobListing"], article, [class*="JobCard"], li[class*="JobsList_jobListItem"]',
+      '[data-test="jobListing"], li[class*="JobsList_jobListItem"], div[class*="JobCard_jobCardContainer"], article, [class*="JobCard"]',
     jobTitle:
-      '[data-test="job-title"], a[class*="JobTitle"], [class*="job-title"]',
+      '[data-test="job-title"], a[data-test="job-link"], a[class*="JobCard_jobTitle"], a[class*="JobTitle"], [class*="job-title"]',
     companyName:
-      '[class*="EmployerProfile"], [class*="EmployerName"], [data-test="employer-name"]',
+      '[class*="EmployerProfile_compactEmployerName"], [class*="EmployerProfile"], [class*="EmployerName"], [data-test="employer-name"]',
     jobLink:
-      'a[data-test="job-title"], a[class*="JobTitle"], a[href*="/job-listing/"]',
+      'a[data-test="job-title"], a[data-test="job-link"], a[class*="JobCard_jobTitle"], a[class*="JobTitle"], a[href*="/job-listing/"]',
     waitSelector:
-      '[data-test="jobListing"], article, [class*="JobsList"], [class*="JobCard"], a[href*="/job-listing/"]',
+      '[data-test="jobListing"], li[class*="JobsList_jobListItem"], div[class*="JobCard_jobCardContainer"], article, [class*="JobsList"], [class*="JobCard"], a[href*="/job-listing/"]',
     baseUrl: 'https://www.glassdoor.com.br',
   },
 };

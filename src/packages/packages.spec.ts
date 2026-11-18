@@ -144,5 +144,22 @@ describe('LioApply Injectable Packages (@lioapply/*)', () => {
         'Backend Developer Pleno',
       );
     });
+
+    it('builds dynamic Glassdoor search URLs and rejects invalid JSON-RPC payloads', async () => {
+      const gd = glassdoor();
+      const urlWithLoc = gd.buildSearchUrl('NodeJS', { label: 'Brasil', locationQuery: 'brasil', providerParams: { glassdoorLocationId: '36' } });
+      expect(urlWithLoc).toContain('SRCH_IL.0,6_IC36.htm');
+
+      const urlNoLoc = gd.buildSearchUrl('NodeJS', { label: 'Remoto' });
+      expect(urlNoLoc).toContain('SRCH_KO0,6.htm');
+
+      const mcp = createLioApplyMcpServer();
+      const invalidReq = await mcp.handleJsonRpcRequest(null as any);
+      expect(invalidReq).toEqual({
+        jsonrpc: '2.0',
+        id: null,
+        error: { code: -32600, message: 'Invalid Request' },
+      });
+    });
   });
 });

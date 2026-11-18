@@ -62,10 +62,38 @@ const nonEmpty = (val: string | undefined, fallback?: string): string | undefine
 const nonEmptyArr = <T>(val: T[] | undefined, fallback: T[]): T[] =>
   Array.isArray(val) && val.length > 0 ? val : fallback;
 
+const pickNonEmptyRecord = <T extends Record<string, string | undefined>>(
+  rec: T | undefined,
+  blockedValues?: Set<string>,
+): Partial<T> => {
+  if (!rec || typeof rec !== 'object') return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(rec)) {
+    const trimmed = typeof v === 'string' ? v.trim() : '';
+    if (!trimmed) continue;
+    if (blockedValues?.has(trimmed.toLowerCase())) continue;
+    out[k] = trimmed;
+  }
+  return out as Partial<T>;
+};
+
+const PT_UNTRANSLATED_LABELS = new Set(
+  [
+    ...Object.values(SECTION_TITLES_BY_LANG.pt),
+    ...Object.values(TECH_LABELS_BY_LANG.pt),
+  ].map((s) => s.toLowerCase()),
+);
+
 @Injectable()
 export class TypstTemplateService {
   escapeTypst(value: string | undefined | null): string {
-    return value ? String(value).replace(TYPST_SPECIAL_CHARS, (ch) => `\\${ch}`).trim() : '';
+    if (!value) return '';
+    return String(value)
+      .replace(TYPST_SPECIAL_CHARS, (ch) => `\\${ch}`)
+      .replace(/\/\//g, '\\/\\/')
+      .replace(/\/\*/g, '\\/*')
+      .replace(/\*\//g, '*\\/')
+      .trim();
   }
 
   escapeTypstStringLiteral(value: string | undefined | null): string {
@@ -103,12 +131,12 @@ export class TypstTemplateService {
       techLabels: {
         ...langTechLabels,
         ...(keepBaseLabels ? baseCv.techLabels : undefined),
-        ...patch.techLabels,
+        ...pickNonEmptyRecord(patch.techLabels, keepBaseLabels ? undefined : PT_UNTRANSLATED_LABELS),
       },
       sectionTitles: {
         ...langTitles,
         ...(keepBaseLabels ? baseCv.sectionTitles : undefined),
-        ...patch.sectionTitles,
+        ...pickNonEmptyRecord(patch.sectionTitles, keepBaseLabels ? undefined : PT_UNTRANSLATED_LABELS),
       },
     };
   }
@@ -119,7 +147,8 @@ export class TypstTemplateService {
   ): string {
     const fallbackTitles = jobMetadata?.language ? SECTION_TITLES_BY_LANG[jobMetadata.language] : DEFAULT_SECTION_TITLES;
     const titles: CvSectionTitles = { ...fallbackTitles, ...cvData.sectionTitles };
-    const docTitle = jobMetadata?.title ? `${cvData.name} - ${jobMetadata.title}` : `${cvData.name} - Currículo`;
+    const docSuffix = jobMetadata?.language === 'en' ? 'Resume' : jobMetadata?.language === 'es' ? 'Currículum' : 'Currículo';
+    const docTitle = jobMetadata?.title ? `${cvData.name} - ${jobMetadata.title}` : `${cvData.name} - ${docSuffix}`;
 
     const contactParts: string[] = [];
     if (cvData.contact?.email) {

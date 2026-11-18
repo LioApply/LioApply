@@ -117,12 +117,15 @@ export class OpenAiCompatibleClassifierClient implements SystemOneClient {
       if (!res.ok) {
         const err = await res.text().catch(() => '');
         lastError = `[${providerName}] HTTP ${res.status}: ${err.slice(0, 250)}`;
-        if (res.status === 429 && !/daily|per-day/i.test(err) && rateRetries++ < 3) {
-          const sec = Number(
-            res.headers.get('retry-after') || err.match(/try again in\s+([\d.]+)s/i)?.[1] || 2 * rateRetries,
-          );
-          await sleep(Math.min(30000, Math.ceil(sec * 1000) + 350));
-          continue;
+        if (res.status === 429) {
+          if (!/daily|per-day/i.test(err) && rateRetries++ < 3) {
+            const sec = Number(
+              res.headers.get('retry-after') || err.match(/try again in\s+([\d.]+)s/i)?.[1] || 2 * rateRetries,
+            );
+            await sleep(Math.min(30000, Math.ceil(sec * 1000) + 350));
+            continue;
+          }
+          throw new Error(lastError);
         }
         if ((isOpenRouter || err.includes('json_validate_failed')) && ++attempt < 2) continue;
         throw new Error(lastError);
@@ -152,19 +155,29 @@ export class GeminiClassifierClient implements SystemOneClient {
   async systemOne<Q extends Record<string, NoulQuestion>>(request: SystemOneRequest<Q>): Promise<SystemOneResponse<Q>> {
     const { apiKey, model, baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models' } = this.options;
     const maxOutputTokens = Math.min(1024, Math.max(80, Object.keys(request.questions).length * 28));
-    const url = `${baseUrl.replace(/\/$/, '')}/${model}:generateContent?key=${apiKey}`;
+    const url = `${baseUrl.replace(/\/$/, '')}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-    const res = await postJson(url, {}, {
-      systemInstruction: { parts: [{ text: SYSTEM_ONE_PROMPT }] },
-      contents: [{ role: 'user', parts: [{ text: buildCompactClassifierPayload(request) }] }],
-      generationConfig: { temperature: 0, topP: 1, maxOutputTokens, responseMimeType: 'application/json' },
-    });
+    for (let rateRetries = 0; ; ) {
+      const res = await postJson(url, {}, {
+        systemInstruction: { parts: [{ text: SYSTEM_ONE_PROMPT }] },
+        contents: [{ role: 'user', parts: [{ text: buildCompactClassifierPayload(request) }] }],
+        generationConfig: { temperature: 0, topP: 1, maxOutputTokens, responseMimeType: 'application/json' },
+      });
 
-    if (!res.ok) throw new Error(`[Gemini] HTTP ${res.status}: ${(await res.text().catch(() => '')).slice(0, 250)}`);
-    const data = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error(`[Gemini] Resposta vazia do modelo ${model}.`);
-    return parseSystemOneJsonOutput(text, request.questions);
+      if (!res.ok) {
+        const err = await res.text().catch(() => '');
+        if (res.status === 429 && rateRetries++ < 3) {
+          const sec = Number(res.headers.get('retry-after') || 2 * rateRetries);
+          await sleep(Math.min(30000, Math.ceil(sec * 1000) + 350));
+          continue;
+        }
+        throw new Error(`[Gemini] HTTP ${res.status}: ${err.slice(0, 250)}`);
+      }
+      const data = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) throw new Error(`[Gemini] Resposta vazia do modelo ${model}.`);
+      return parseSystemOneJsonOutput(text, request.questions);
+    }
   }
 }
 

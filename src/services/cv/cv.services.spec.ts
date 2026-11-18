@@ -8,6 +8,7 @@ import { createProviders } from '../classifier/providers';
 import { CvOptimizationService } from './cv-optimization.service';
 import { BaseCvData } from '../../interfaces/cv/cv.interface';
 import { CvConfigService } from './cv-config.service';
+import { detectJobLanguage } from './prompts/cv-ats.prompt';
 
 describe('CV Optimization Pipeline Services', () => {
   let templateService: TypstTemplateService;
@@ -375,6 +376,28 @@ describe('CV Optimization Pipeline Services', () => {
       expect(spy).toHaveBeenCalledWith(7, { sendWhatsapp: true, recipientNumber: '5511999999999', instanceName: 'bot' });
       expect(botMock.sendMessage).toHaveBeenCalledWith(expect.objectContaining({ instanceName: 'bot', number: '5511999999999' }));
       expect(res).toMatchObject({ status: 'completed', fileName: 'cv.pdf' });
+    });
+
+    it('detects PT-BR even with English tech terms and blocks untranslated PT labels on EN output', () => {
+      const ptWithBuzzwords =
+        'Vaga Backend Software Engineer Remote. Buscamos você para trabalhar com nossa equipe de tecnologia e requisitos de arquitetura.';
+      expect(detectJobLanguage(ptWithBuzzwords)).toBe('pt');
+      expect(detectJobLanguage('We are looking for a Senior Backend Engineer to join our remote team.')).toBe('en');
+
+      const mergedEn = templateService.mergeBaseWithPatch(
+        sampleBaseCv,
+        {
+          sectionTitles: { summary: 'Resumo Profissional', experience: '' } as any,
+          techLabels: { languages: 'Linguagens', databases: '   ' } as any,
+        },
+        'en',
+      );
+      expect(mergedEn.sectionTitles?.summary).toBe('Professional Summary');
+      expect(mergedEn.sectionTitles?.experience).toBe('Professional Experience');
+      expect(mergedEn.techLabels?.languages).toBe('Languages');
+      expect(mergedEn.techLabels?.databases).toBe('Databases');
+
+      expect(templateService.escapeTypst('See https://example.com // note')).toBe('See https:\\/\\/example.com \\/\\/ note');
     });
   });
 });

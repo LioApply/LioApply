@@ -11,6 +11,7 @@ import { BaseCvData, CvOptimizationConfig } from '../../interfaces/cv/cv.interfa
 @Injectable()
 export class CvConfigService {
   private cachedBaseCv: BaseCvData | null = null;
+  private cachedBaseCvPath: string | null = null;
 
   constructor(
     @Optional() private readonly jobConfigService?: JobConfigService,
@@ -35,9 +36,10 @@ export class CvConfigService {
   }
 
   getBaseCv(): BaseCvData {
-    if (this.cachedBaseCv) return this.cachedBaseCv;
     const { baseCvPath } = this.getCvOptimizationConfig();
     const resolvedBase = path.isAbsolute(baseCvPath) ? baseCvPath : path.resolve(process.cwd(), baseCvPath);
+    if (this.cachedBaseCv && this.cachedBaseCvPath === resolvedBase) return this.cachedBaseCv;
+
     const cvPath = findExistingFile([
       resolvedBase,
       path.resolve(process.cwd(), 'cv.base.yaml'),
@@ -46,10 +48,13 @@ export class CvConfigService {
     ]);
 
     const parsed = cvPath ? parseYamlObject<BaseCvData>(fs.readFileSync(cvPath, 'utf8')) : undefined;
-    if (parsed?.name) return (this.cachedBaseCv = parsed);
+    if (parsed?.name) {
+      this.cachedBaseCvPath = resolvedBase;
+      return (this.cachedBaseCv = parsed);
+    }
 
     throw new Error(
-      "Currículo base não encontrado: crie o arquivo 'cv.base.yaml' na raiz do projeto ou defina CV_BASE_YAML no ambiente.",
+      "Currículo base não encontrado: crie o arquivo 'cv.base.yaml' na raiz do projeto ou defina CV_BASE_PATH no ambiente.",
     );
   }
 }

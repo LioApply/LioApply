@@ -175,7 +175,7 @@ export async function evaluateTailoredCvWithJev(
   jobInfo: { title: string; company?: string; description: string },
 ): Promise<TailoredCvEvaluation> {
   try {
-    const { languages = '', frontend = '', backend = '', databases = '', devops = '' } = tailoredPatch.technologies;
+    const { languages = '', frontend = '', backend = '', databases = '', devops = '' } = tailoredPatch.technologies || {};
     const res = await client.systemOne({
       state: {
         target_job: {
@@ -213,6 +213,11 @@ export async function evaluateTailoredCvWithJev(
     };
   } catch (error) {
     logger.warn('Aviso: Não foi possível auditar CV com o classificador:', error);
-    return { isCredible: true, credibilityProbability: 1, atsScore: 85, summaryReason: 'Currículo adaptado para ATS.' };
+    return {
+      isCredible: false,
+      credibilityProbability: 0,
+      atsScore: 0,
+      summaryReason: 'Auditoria de CV indisponível (erro no classificador).',
+    };
   }
 }

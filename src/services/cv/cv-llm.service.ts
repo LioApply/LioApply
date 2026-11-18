@@ -87,6 +87,20 @@ export class CvLlmService {
     return configured || (process.env.CV_BASE_URL ? 'ollama' : 'openrouter');
   }
 
+  private matchBaseItem<T>(
+    baseList: T[],
+    getKey: (item: T) => string | undefined,
+    candidateKey: string | undefined,
+    index: number,
+  ): T | undefined {
+    const normalized = candidateKey?.trim().toLowerCase();
+    if (normalized) {
+      const exact = baseList.find((item) => getKey(item)?.trim().toLowerCase() === normalized);
+      if (exact) return exact;
+    }
+    return index < baseList.length ? baseList[index] : undefined;
+  }
+
   parseTailoredPatchJson(rawText: string, base: BaseCvData): CvTailoredPatchDto {
     const p = extractJsonObject<Partial<CvTailoredPatchDto>>(
       rawText,
@@ -96,37 +110,49 @@ export class CvLlmService {
       headline: nonEmpty(p.headline, base.headline),
       summary: nonEmpty(p.summary, base.summary)!,
       experience: Array.isArray(p.experience) && p.experience.length
-        ? p.experience.map((e, i) => ({
-            title: nonEmpty(e.title, base.experience[i]?.title) || 'Developer',
-            company: base.experience[i]?.company || e.company || '',
-            location: nonEmpty(e.location, base.experience[i]?.location) || '',
-            dates: preserveTranslatedDate(e.dates, base.experience[i]?.dates),
-            description: cleanList(e.description, base.experience[i]?.description),
-          }))
+        ? p.experience.slice(0, base.experience.length).map((e, i) => {
+            const matched = this.matchBaseItem(base.experience, (x) => x.company, e.company, i);
+            return {
+              title: nonEmpty(e.title, matched?.title) || 'Developer',
+              company: matched?.company || e.company || '',
+              location: nonEmpty(e.location, matched?.location) || '',
+              dates: preserveTranslatedDate(e.dates, matched?.dates),
+              description: cleanList(e.description, matched?.description),
+            };
+          })
         : base.experience,
       projects: Array.isArray(p.projects) && p.projects.length
-        ? p.projects.map((proj, i) => ({
-            name: base.projects[i]?.name || proj.name || 'Project',
-            techStack: nonEmpty(proj.techStack, base.projects[i]?.techStack),
-            link: base.projects[i]?.link || proj.link,
-            dates: preserveTranslatedDate(proj.dates, base.projects[i]?.dates) || undefined,
-            description: cleanList(proj.description, base.projects[i]?.description),
-          }))
+        ? p.projects.slice(0, base.projects.length).map((proj, i) => {
+            const matched = this.matchBaseItem(base.projects, (x) => x.name, proj.name, i);
+            return {
+              name: matched?.name || proj.name || 'Project',
+              techStack: nonEmpty(proj.techStack, matched?.techStack),
+              link: matched?.link || proj.link,
+              dates: preserveTranslatedDate(proj.dates, matched?.dates) || undefined,
+              description: cleanList(proj.description, matched?.description),
+            };
+          })
         : base.projects,
       education: Array.isArray(p.education) && p.education.length
-        ? p.education.map((ed, i) => ({
-            institution: base.education[i]?.institution || ed.institution || '',
-            degree: nonEmpty(ed.degree, base.education[i]?.degree) || '',
-            location: nonEmpty(ed.location, base.education[i]?.location),
-            dates: preserveTranslatedDate(ed.dates, base.education[i]?.dates),
-          }))
+        ? p.education.slice(0, base.education.length).map((ed, i) => {
+            const matched = this.matchBaseItem(base.education, (x) => x.institution, ed.institution, i);
+            return {
+              institution: matched?.institution || ed.institution || '',
+              degree: nonEmpty(ed.degree, matched?.degree) || '',
+              location: nonEmpty(ed.location, matched?.location),
+              dates: preserveTranslatedDate(ed.dates, matched?.dates),
+            };
+          })
         : base.education,
       languages: Array.isArray(p.languages) && p.languages.length
-        ? p.languages.map((lang, i) => ({
-            language: nonEmpty(lang.language, base.languages[i]?.language) || '',
-            level: nonEmpty(lang.level, base.languages[i]?.level) || '',
-            certification: nonEmpty(lang.certification, base.languages[i]?.certification),
-          }))
+        ? p.languages.slice(0, base.languages.length).map((lang, i) => {
+            const matched = this.matchBaseItem(base.languages, (x) => x.language, lang.language, i);
+            return {
+              language: nonEmpty(lang.language, matched?.language) || '',
+              level: nonEmpty(lang.level, matched?.level) || '',
+              certification: nonEmpty(lang.certification, matched?.certification),
+            };
+          })
         : base.languages,
       certifications: Array.isArray(p.certifications) && p.certifications.length
         ? cleanList(p.certifications, base.certifications)

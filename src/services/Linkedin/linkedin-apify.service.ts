@@ -6,10 +6,15 @@ export class LinkedinApifyService {
   private readonly logger = new Logger(LinkedinApifyService.name);
 
   async scrapeLinkedinPosts(query: string[]): Promise<ScrapedPost[]> {
+    const apifyUrl = process.env.APIFY_URL?.trim();
+    if (!apifyUrl) {
+      throw new Error('APIFY_URL não configurada no ambiente.');
+    }
     try {
       this.logger.log(`Executando Apify Actor em modo síncrono. Aguardando resultados de ${query.length} queries...`);
-      const res = await fetch(`${process.env.APIFY_URL!}`, {
+      const res = await fetch(apifyUrl, {
         method: 'POST',
+        signal: AbortSignal.timeout(120000),
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           maxPosts: 20,

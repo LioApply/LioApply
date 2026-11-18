@@ -67,31 +67,37 @@ const LANG_DISPLAY: Record<SupportedCvLanguage, string> = {
 
 export function detectJobLanguage(text: string): SupportedCvLanguage {
   const lower = (text || '').toLowerCase();
-  const countMatches = (words: string[]) =>
-    words.reduce((acc, w) => acc + (lower.match(new RegExp(`\\b${w}\\b`, 'g'))?.length || 0), 0);
+  const tokens = lower.match(/[\p{L}]+/gu) || [];
+  const freq = new Map<string, number>();
+  for (const token of tokens) {
+    freq.set(token, (freq.get(token) || 0) + 1);
+  }
+  const countWords = (words: string[]) => words.reduce((acc, w) => acc + (freq.get(w) || 0), 0);
 
-  const enScore = countMatches([
+  const enScore = countWords([
     'the', 'and', 'with', 'for', 'you', 'will', 'are', 'our', 'requirements', 'experience',
-    'responsibilities', 'skills', 'work', 'team', 'software', 'developer', 'engineer',
-    'remote', 'hybrid', 'benefits', 'about', 'your', 'have', 'from', 'this', 'looking',
+    'responsibilities', 'skills', 'about', 'your', 'have', 'from', 'this', 'looking', 'we',
+    'position', 'candidate', 'qualifications', 'benefits', 'salary',
   ]);
   const ptScore =
-    countMatches([
+    countWords([
       'para', 'com', 'que', 'uma', 'dos', 'das', 'nos', 'nas', 'como', 'requisitos',
       'experiência', 'responsabilidades', 'vaga', 'empresa', 'trabalho', 'equipe',
       'desenvolvedor', 'engenheiro', 'remoto', 'híbrido', 'benefícios', 'sobre', 'você',
-      'nosso', 'nossa', 'conhecimento', 'buscamos', 'anos',
+      'nosso', 'nossa', 'conhecimento', 'conhecimentos', 'buscamos', 'anos', 'atuação',
+      'atividades', 'diferenciais', 'salário', 'contratação', 'candidato', 'oportunidade',
     ]) + (lower.match(/[ãõç]/g)?.length || 0);
   const esScore =
-    countMatches([
+    countWords([
       'para', 'con', 'que', 'una', 'los', 'las', 'como', 'requisitos', 'experiencia',
       'responsabilidades', 'puesto', 'empresa', 'trabajo', 'equipo', 'desarrollador',
       'ingeniero', 'remoto', 'híbrido', 'beneficios', 'sobre', 'nosotros', 'nuestro',
       'conocimientos', 'buscamos', 'años',
     ]) + (lower.match(/[ñ¿¡]/g)?.length || 0) * 2;
 
-  if (enScore >= ptScore && enScore >= esScore && enScore > 0) return 'en';
+  if (ptScore >= enScore && ptScore >= esScore && ptScore > 0) return 'pt';
   if (esScore > ptScore && esScore > enScore) return 'es';
+  if (enScore > ptScore && enScore >= esScore && enScore > 0) return 'en';
   return 'pt';
 }
 
@@ -154,7 +160,15 @@ export function buildAtsCvOptimizationPrompt(
   const { headline, summary, experience, projects, education, certifications, languages, technologies, techLabels, sectionTitles } = baseCv;
   const targetLang = detectJobLanguage(`${jobInfo.title}\n${jobInfo.description}`);
   const targetLangDisplay = LANG_DISPLAY[targetLang];
+  const strictTranslationDirective =
+    targetLang === 'en'
+      ? 'CRITICAL: Write EVERY SINGLE FIELD in English. Translate all Portuguese dates ("Atual" -> "Present", "Mai" -> "May"), locations ("Brasil" -> "Brazil", "Remoto" -> "Remote"), degrees, certifications, language names/levels ("Inglês" -> "English", "Português" -> "Portuguese", "Nativo" -> "Native"), practices, techLabels, and sectionTitles into English. Do NOT leave any Portuguese words.'
+      : targetLang === 'es'
+        ? 'CRÍTICO: Escribe TODOS LOS CAMPOS en español. Traduce fechas ("Atual" -> "Actualidad"), ubicaciones ("Brasil" -> "Brasil", "Remoto" -> "Remoto"), títulos académicos, certificaciones, idiomas, practices, techLabels y sectionTitles al español.'
+        : 'IMPORTANTE: Escreva TODOS os campos em Português (Brasil), incluindo títulos de seção e rótulos.';
+
   const userPrompt = `### IDIOMA OBRIGATÓRIO DE SAÍDA: ${targetLangDisplay}
+${strictTranslationDirective}
 
 ### DADOS DA VAGA ALVO:
 - Cargo: ${jobInfo.title}
@@ -165,7 +179,7 @@ ${jobInfo.description}
 ### CURRÍCULO BASE DO CANDIDATO (JSON):
 ${JSON.stringify({ headline, summary, experience, projects, education, certifications, languages, technologies, techLabels, sectionTitles }, null, 2)}
 
-Adapte e traduza TODO o conteúdo (incluindo datas, locais, educação, certificações, idiomas, "techLabels" e "sectionTitles") para **${targetLangDisplay}**. Retorne APENAS o JSON atualizado no formato exato abaixo:
+Adapte e traduza TODO o conteúdo (incluindo datas, locais, educação, certificações, idiomas, "techLabels" e "sectionTitles") para **${targetLangDisplay}**. ${strictTranslationDirective} Retorne APENAS o JSON atualizado no formato exato abaixo:
 ${OUTPUT_SCHEMA_HINT}`;
 
   return [

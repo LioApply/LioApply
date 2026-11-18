@@ -103,6 +103,9 @@ export function createLioApplyMcpServer(options?: LioApplyOptions) {
     listTools: (): McpToolDefinition[] => LIOAPPLY_MCP_TOOLS,
 
     async callTool(name: string, args: Record<string, any> = {}) {
+      if (args.candidates !== undefined && !Array.isArray(args.candidates)) {
+        throw new Error('O parâmetro "candidates" deve ser um array.');
+      }
       const candidates = (args.candidates || []) as NormalizedCandidateJob[];
 
       switch (name) {
@@ -141,6 +144,9 @@ export function createLioApplyMcpServer(options?: LioApplyOptions) {
     },
 
     async handleJsonRpcRequest(request: JsonRpcRequest): Promise<JsonRpcResponse | null> {
+      if (!request || typeof request !== 'object' || Array.isArray(request)) {
+        return { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Invalid Request' } };
+      }
       if (request.id === undefined) return null;
 
       const ok = (result: unknown): JsonRpcResponse => ({ jsonrpc: '2.0', id: request.id!, result });
@@ -172,19 +178,42 @@ export function createLioApplyMcpServer(options?: LioApplyOptions) {
       }
     },
 
-    startStdio(): void {
+    startStdio(): Promise<void> {
+      const writeRpc = process.stdout.write.bind(process.stdout);
+      console.log = (...args: unknown[]) => {
+        process.stderr.write(`${args.map(String).join(' ')}\n`);
+      };
+      console.info = console.log;
+      console.warn = console.log;
+
       const rl = readline.createInterface({ input: process.stdin, terminal: false });
-      rl.on('line', async (line) => {
-        const trimmed = line.trim();
-        if (!trimmed) return;
-        try {
-          const res = await this.handleJsonRpcRequest(JSON.parse(trimmed) as JsonRpcRequest);
-          if (res) process.stdout.write(JSON.stringify(res) + '\n');
-        } catch (err: any) {
-          process.stdout.write(
-            JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32700, message: `Parse error: ${err?.message || err}` } }) + '\n',
-          );
-        }
+      let queue = Promise.resolve();
+
+      rl.on('line', (line) => {
+        queue = queue.then(async () => {
+          const trimmed = line.trim();
+          if (!trimmed) return;
+          let parsed: JsonRpcRequest;
+          try {
+            parsed = JSON.parse(trimmed) as JsonRpcRequest;
+          } catch (err: any) {
+            writeRpc(
+              JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32700, message: `Parse error: ${err?.message || err}` } }) + '\n',
+            );
+            return;
+          }
+          const res = await this.handleJsonRpcRequest(parsed);
+          if (res) writeRpc(JSON.stringify(res) + '\n');
+        });
+      });
+
+      return new Promise<void>((resolve) => {
+        rl.on('close', () => {
+          void queue.finally(resolve);
+        });
+        process.stdin.on('error', () => {
+          rl.close();
+        });
       });
     },
   };

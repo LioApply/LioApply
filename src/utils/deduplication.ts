@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { ScrapedPost } from '../interfaces/ScrapedPost/iscrapedpost.interface';
 
 export interface JobIdentity {
@@ -34,7 +35,7 @@ export function normalizeScrapedPost(post: ScrapedPost): NormalizedCandidateJob 
 
   let url = post.url?.trim() || '';
   if (!url) {
-    const hash = Buffer.from(text || title).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 50);
+    const hash = createHash('sha256').update(text || title).digest('hex').slice(0, 32);
     url = `urn:job-hash:${hash}`;
   }
 

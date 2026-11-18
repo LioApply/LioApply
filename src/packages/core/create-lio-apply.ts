@@ -19,31 +19,32 @@ import {
   ScrapeJobsParams,
 } from './types';
 
-function applyEnvOptions(options?: LioApplyOptions) {
-  if (typeof options?.profile === 'string') process.env.CONFIG_PATH = options.profile;
-  const c = options?.classifier;
-  if (c?.provider && c.provider !== 'auto') process.env.CLASSIFIER_PROVIDER = c.provider;
-  if (c?.apiKey) process.env.CLASSIFIER_API_KEY = c.apiKey;
-  if (c?.model) process.env.CLASSIFIER_MODEL = c.model;
-  if (c?.baseUrl) process.env.CLASSIFIER_BASE_URL = c.baseUrl;
-}
-
 /** Functional SDK (`@lioapply/core`): Composable LioApply automation instance. */
 export function createLioApply(options?: LioApplyOptions) {
-  applyEnvOptions(options);
-
+  const configPath = typeof options?.profile === 'string' ? options.profile : undefined;
   const configService = new JobConfigService();
   try {
-    configService.loadConfig();
+    configService.loadConfig(configPath);
   } catch {
     // Allows programmatic execution without jobs.config.yaml on disk
   }
 
   const profileOverride = options?.profile && typeof options.profile === 'object' ? options.profile : undefined;
+  const classifierOverride = options?.classifier
+    ? {
+        ...(options.classifier.provider && options.classifier.provider !== 'auto'
+          ? { provider: options.classifier.provider }
+          : {}),
+        ...(options.classifier.apiKey ? { apiKey: options.classifier.apiKey } : {}),
+        ...(options.classifier.model ? { model: options.classifier.model } : {}),
+        ...(options.classifier.baseUrl ? { baseUrl: options.classifier.baseUrl } : {}),
+      }
+    : undefined;
+
   const deps: PipelineDeps = {
     configService,
     deduplicationService: new JobDeduplicationService(),
-    classifierService: createClassifierService(configService),
+    classifierService: createClassifierService(configService, classifierOverride),
     digestFormatter: new JobDigestFormatter(),
     playwrightService: new PlaywrightService(),
     defaultProviders: resolveProviders(options?.providers),

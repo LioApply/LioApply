@@ -10,7 +10,7 @@ import {
   SystemOneClient,
   UserProfileCriteria,
 } from '../../utils/jev';
-import { ClassifierProviderType } from './classifier-clients';
+import { ClassifierProviderConfig, ClassifierProviderType } from './classifier-clients';
 import { CLASSIFIER_PROVIDERS, createProviders } from './providers';
 
 export interface JobEvaluationResult {
@@ -41,15 +41,15 @@ export class ClassifierService implements OnModuleInit {
     this.initializeProvider();
   }
 
-  initializeProvider(): void {
+  initializeProvider(override?: Partial<ClassifierProviderConfig>): void {
     this.client = null;
     this.activeProviderName = 'none';
 
     const yaml = this.configService?.getClassifierConfig?.();
-    const requested = (process.env.CLASSIFIER_PROVIDER || yaml?.provider || 'auto')
+    const requested = (override?.provider || process.env.CLASSIFIER_PROVIDER || yaml?.provider || 'auto')
       .trim()
       .toLowerCase() as ClassifierProviderType;
-    const id = this.resolveProviderId(requested);
+    const id = this.resolveProviderId(requested, override);
 
     const provider = this.providers.find((p) => p.id === id);
     if (!provider) {
@@ -63,9 +63,9 @@ export class ClassifierService implements OnModuleInit {
 
     const resolution = provider.createClient({
       provider: id,
-      apiKey: process.env.CLASSIFIER_API_KEY,
-      model: process.env.CLASSIFIER_MODEL || yaml?.model,
-      baseUrl: process.env.CLASSIFIER_BASE_URL || yaml?.baseUrl,
+      apiKey: override?.apiKey || process.env.CLASSIFIER_API_KEY,
+      model: override?.model || process.env.CLASSIFIER_MODEL || yaml?.model,
+      baseUrl: override?.baseUrl || process.env.CLASSIFIER_BASE_URL || yaml?.baseUrl,
     });
     if (!resolution) return;
 
@@ -74,10 +74,16 @@ export class ClassifierService implements OnModuleInit {
     this.logger.log(`✅ Classificador System-One inicializado com provider: ${resolution.name}`);
   }
 
-  private resolveProviderId(requested: ClassifierProviderType): ClassifierProviderType {
+  private resolveProviderId(
+    requested: ClassifierProviderType,
+    override?: Partial<ClassifierProviderConfig>,
+  ): ClassifierProviderType {
     if (requested !== 'auto') return requested === 'systemone' ? 'jev' : requested;
     const detected = AUTO_PRIORITY.find((id) => this.providers.find((p) => p.id === id)?.isConfigured());
-    return detected || (process.env.CLASSIFIER_BASE_URL ? 'ollama' : 'none');
+    if (detected) return detected;
+    if (override?.baseUrl || process.env.CLASSIFIER_BASE_URL) return 'ollama';
+    if (override?.apiKey || process.env.CLASSIFIER_API_KEY) return 'openrouter';
+    return 'none';
   }
 
   getActiveProviderName = (): string => this.activeProviderName;
@@ -114,15 +120,19 @@ export class ClassifierService implements OnModuleInit {
     const client = this.ensureClient();
     if (!client) return jobs.map(() => unconfiguredResult());
 
+    const safeBatchSize = Number.isFinite(batchSize) && batchSize >= 1 ? Math.floor(batchSize) : 10;
     const results: JobEvaluationResult[] = [];
-    const totalBatches = Math.ceil(jobs.length / batchSize);
+    const totalBatches = Math.ceil(jobs.length / safeBatchSize);
 
-    for (let i = 0; i < jobs.length; i += batchSize) {
-      const chunk = jobs.slice(i, i + batchSize);
-      const batchNum = Math.floor(i / batchSize) + 1;
+    for (let i = 0; i < jobs.length; i += safeBatchSize) {
+      const chunk = jobs.slice(i, i + safeBatchSize);
+      const batchNum = Math.floor(i / safeBatchSize) + 1;
       this.logger.log(`📤 Enviando lote ${batchNum}/${totalBatches} (${chunk.length} vagas) para ${this.activeProviderName}...`);
       try {
         const evaluations = await evaluateJobsBatchWithSystemOne(client, chunk, profile);
+        if (evaluations.length !== chunk.length) {
+          throw new Error(`Tamanho da resposta do lote (${evaluations.length}) difere do chunk (${chunk.length}).`);
+        }
         const approvedCount = evaluations.filter((e) => e.shouldApply).length;
         const maxScore = Math.max(0, ...evaluations.map((e) => e.score));
         this.logger.log(
@@ -152,9 +162,12 @@ export class ClassifierService implements OnModuleInit {
   }
 }
 
-export function createClassifierService(configService?: JobConfigService): ClassifierService {
+export function createClassifierService(
+  configService?: JobConfigService,
+  override?: Partial<ClassifierProviderConfig>,
+): ClassifierService {
   const providers = createProviders(configService?.getConfig?.()?.providers);
   const service = new ClassifierService(configService, providers);
-  service.initializeProvider();
+  service.initializeProvider(override);
   return service;
 }

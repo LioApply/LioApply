@@ -16,8 +16,9 @@ export class JobConfigService implements OnModuleInit {
     this.loadConfig();
   }
 
-  loadConfig(): AppJobConfig {
+  loadConfig(configPath?: string): AppJobConfig {
     const candidates = [
+      ...(configPath ? [path.isAbsolute(configPath) ? configPath : path.resolve(process.cwd(), configPath)] : []),
       path.resolve(process.cwd(), 'jobs.config.yaml'),
       path.resolve(process.cwd(), 'jobs.config.yml'),
       '/usr/src/app/jobs.config.yaml',
@@ -27,7 +28,7 @@ export class JobConfigService implements OnModuleInit {
     );
     if (!res) {
       throw new Error(
-        "Configuração ausente: Forneça a variável JOBS_CONFIG_YAML (ou SEARCH_QUERIES) no ambiente (.env / Railway) ou crie o arquivo 'jobs.config.yaml' a partir de 'jobs.config.example.yaml'.",
+        "Configuração ausente: crie o arquivo 'jobs.config.yaml' (ou 'jobs.config.yml') na raiz do projeto a partir de 'jobs.config.example.yaml'.",
       );
     }
 
