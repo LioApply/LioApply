@@ -8,6 +8,7 @@ import { createProviders } from '../classifier/providers';
 import { CvOptimizationService } from './cv-optimization.service';
 import { BaseCvData } from '../../interfaces/cv/cv.interface';
 import { CvConfigService } from './cv-config.service';
+import { JobPageMetadataService } from './job-page-metadata.service';
 import { detectJobLanguage } from './prompts/cv-ats.prompt';
 
 describe('CV Optimization Pipeline Services', () => {
@@ -132,6 +133,7 @@ describe('CV Optimization Pipeline Services', () => {
         templateService,
         compilerService,
         {} as any,
+        new JobPageMetadataService(),
       );
 
       expect(cvOptService.parseCvCommand('/cv 42')).toEqual({
@@ -195,6 +197,7 @@ describe('CV Optimization Pipeline Services', () => {
       process.env.INSTANCE_NAME = 'job-bot';
       process.env.WHATSAPP_NUMBER = '5579988043018';
 
+      const metadataService = new JobPageMetadataService();
       const cvOptService = new CvOptimizationService(
         mockConfigService as any,
         mockHistoryRepo as any,
@@ -203,6 +206,7 @@ describe('CV Optimization Pipeline Services', () => {
         templateService,
         compilerService,
         mockBotService as any,
+        metadataService,
       );
 
       try {
@@ -219,7 +223,7 @@ describe('CV Optimization Pipeline Services', () => {
           }),
         );
       } finally {
-        await cvOptService.onModuleDestroy();
+        await metadataService.onModuleDestroy();
       }
     });
   });
@@ -351,6 +355,7 @@ describe('CV Optimization Pipeline Services', () => {
         {} as any,
         {} as any,
         botMock as any,
+        new JobPageMetadataService(),
       );
 
       expect(await service.handleEvolutionWebhook({ text: 'olá' })).toEqual({ status: 'ignored' });

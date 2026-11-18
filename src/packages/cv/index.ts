@@ -116,6 +116,7 @@ export class LioApplyCvModule {
   }
 }
 
+export { JobPageMetadataService } from '../../services/cv/job-page-metadata.service';
 export { CvConfigService, CvOptimizationService, CvLlmService, TypstTemplateService, TypstCompilerService };
 export type {
   CvOptimizationResult,

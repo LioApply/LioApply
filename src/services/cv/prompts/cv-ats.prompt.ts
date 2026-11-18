@@ -112,14 +112,14 @@ Seu objetivo é adaptar cirurgicamente as seções fornecidas do currículo do c
 
 ### REGRAS ABSOLUTAS (NÃO NEGOCIÁVEIS):
 1. Preservação Factual:
-   - Mantenha exatamente as mesmas empresas, períodos (dates) e os 4 projetos reais do candidato.
+   - Mantenha exatamente as mesmas empresas, períodos (dates) e todos os projetos reais do candidato (sem adicionar, remover ou renomear projetos).
    - Ajuste o campo "headline" (título principal abaixo do nome) para refletir o título da vaga alvo e as principais stacks pedidas na vaga.
-   - Você pode ajustar levemente o título das experiências principais (ex: "Desenvolvedor Full Stack" / "Engenheiro de Software" / "Desenvolvedor Frontend/Backend") para alinhar à vaga.
+   - Você pode ajustar levemente o título das experiências principais para alinhar à nomenclatura do cargo da vaga, sem mudar a natureza real da função exercida.
 2. Extração e Densidade Controlada de Palavras-Chave (ATS):
    - Identifique de 5 a 8 palavras-chave técnicas obrigatórias da vaga (linguagens, frameworks, bancos, mensageria, cloud, arquitetura, práticas).
    - Inclua essas palavras-chave de forma natural:
      a) No "headline" e no "summary" (resumo profissional);
-     b) Nos primeiros bullets ("description") das experiências mais relevantes (GoWork Digital e The Public House), descrevendo ação técnica e impacto concreto;
+     b) Nos primeiros bullets ("description") das experiências mais relevantes para a vaga, descrevendo ação técnica e impacto concreto;
      c) Na seção "technologies", priorizando na frente as tecnologias exigidas na vaga em cada categoria ("languages", "frontend", "backend", "databases", "devops", "aiAndTools", "practices").
 3. Idioma (Adaptação Obrigatória ao Idioma da Vaga):
    - Identifique o idioma predominante da vaga (priorizando "Descrição / Requisitos" e usando "Cargo" como apoio).

@@ -1,12 +1,11 @@
-import { Injectable, Logger, OnModuleDestroy, Optional } from '@nestjs/common';
-import * as cheerio from 'cheerio';
-import { Browser, BrowserContext, chromium, Page } from 'playwright';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { BaseCvData, TailoredCvEvaluation } from '../../interfaces/cv/cv.interface';
 import { JobHistoryRepository } from '../../repositories/job-history.repository';
 import { BotService } from '../bot/bot.service';
 import { ClassifierService } from '../classifier/classifier.service';
 import { CvConfigService } from './cv-config.service';
 import { CvLlmService } from './cv-llm.service';
+import { JobPageMetadataService } from './job-page-metadata.service';
 import { detectJobLanguage } from './prompts/cv-ats.prompt';
 import { TypstCompilerService } from './typst-compiler.service';
 import { buildSafePdfFileName, TypstTemplateService } from './typst-template.service';
@@ -25,9 +24,8 @@ export interface CvSendOptions {
 }
 
 @Injectable()
-export class CvOptimizationService implements OnModuleDestroy {
+export class CvOptimizationService {
   private readonly logger = new Logger(CvOptimizationService.name);
-  private browserPromise: Promise<Browser> | null = null;
 
   constructor(
     private readonly cvConfigService: CvConfigService,
@@ -37,14 +35,8 @@ export class CvOptimizationService implements OnModuleDestroy {
     private readonly typstTemplateService: TypstTemplateService,
     private readonly typstCompilerService: TypstCompilerService,
     @Optional() private readonly botService: BotService,
+    private readonly jobPageMetadata: JobPageMetadataService,
   ) {}
-
-  async onModuleDestroy() {
-    if (!this.browserPromise) return;
-    const browser = await this.browserPromise.catch(() => null);
-    this.browserPromise = null;
-    await browser?.close().catch(() => undefined);
-  }
 
   async optimizeForStoredJobId(jobId: number, options?: CvSendOptions): Promise<CvOptimizationResult> {
     const storedJob = await this.historyRepository.getJobById(jobId);
@@ -52,7 +44,7 @@ export class CvOptimizationService implements OnModuleDestroy {
 
     let description = storedJob.description || storedJob.title;
     if (description.length < 300 && storedJob.url?.startsWith('http')) {
-      const { description: enriched } = await this.fetchJobPageMetadata(storedJob.url);
+      const { description: enriched } = await this.jobPageMetadata.fetch(storedJob.url);
       if (enriched.length > description.length) description = enriched;
     }
 
@@ -71,7 +63,7 @@ export class CvOptimizationService implements OnModuleDestroy {
 
     if (/^https?:\/\/\S+$/i.test(trimmed)) {
       url = trimmed;
-      const fetched = await this.fetchJobPageMetadata(url);
+      const fetched = await this.jobPageMetadata.fetch(url);
       if (!fetched.description || fetched.description.length < 80) {
         throw new Error(
           `Não foi possível extrair a descrição da vaga a partir do link (${url}). O site pode exigir login ou bloquear acesso automatizado. Cole o texto da descrição da vaga diretamente após /cv.`,
@@ -197,134 +189,5 @@ export class CvOptimizationService implements OnModuleDestroy {
       base64Pdf: pdfBuffer.toString('base64'),
       caption,
     });
-  }
-
-  private getSharedBrowser(): Promise<Browser> {
-    if (!this.browserPromise) {
-      this.browserPromise = chromium
-        .launch({
-          headless: true,
-          executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
-          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-blink-features=AutomationControlled'],
-        })
-        .then((browser) => {
-          browser.on?.('disconnected', () => {
-            this.browserPromise = null;
-          });
-          return browser;
-        })
-        .catch((err) => {
-          this.browserPromise = null;
-          throw err;
-        });
-    }
-    return this.browserPromise;
-  }
-
-  private async fetchJobPageMetadata(url: string): Promise<{ title: string; company?: string; description: string }> {
-    let context: BrowserContext | undefined;
-    let page: Page | undefined;
-    try {
-      this.logger.log(`🌐 Extraindo HTML da vaga via Playwright: ${url}`);
-      const browser = await this.getSharedBrowser();
-      context = await browser.newContext({
-        userAgent:
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        viewport: { width: 1280, height: 720 },
-      });
-      await context.addInitScript(() => {
-        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-      });
-      await context.route('**/*', (route) => {
-        const type = route.request().resourceType();
-        return ['image', 'media', 'font'].includes(type) ? route.abort() : route.continue();
-      });
-
-      page = await context.newPage();
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
-      await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => undefined);
-      const html = await page.content();
-      return this.extractJobMetadataFromHtml(html);
-    } catch (error) {
-      this.logger.warn(`⚠️ Falha ao extrair vaga via Playwright (${url}): ${error instanceof Error ? error.message : error}`);
-      return { title: '', description: '' };
-    } finally {
-      await page?.close().catch(() => undefined);
-      await context?.close().catch(() => undefined);
-    }
-  }
-
-  extractJobMetadataFromHtml(html: string): { title: string; company?: string; description: string } {
-    const $ = cheerio.load(html);
-    const jsonLd = this.extractJobPostingJsonLd($);
-
-    $('script, style, nav, footer, header, noscript, svg').remove();
-    const pageTitle =
-      jsonLd?.title ||
-      $('h1').first().text().trim() ||
-      $('meta[property="og:title"]').attr('content')?.trim() ||
-      $('title').first().text().trim() ||
-      '';
-
-    const selectors = [
-      '[class*="description__text"]',
-      '[class*="job-description"]',
-      '[class*="jobDescription"]',
-      '[data-testid*="description"]',
-      '[id*="job-description"]',
-      '[id*="description"]',
-      'article',
-      'main',
-      '[class*="description"]',
-      'body',
-    ];
-
-    let bestText = jsonLd?.description || '';
-    if (bestText.length < 120) {
-      for (const sel of selectors) {
-        const text = $(sel).first().text().replace(/\s+/g, ' ').trim();
-        if (text.length >= 120) {
-          bestText = text;
-          break;
-        }
-        if (text.length > bestText.length) bestText = text;
-      }
-    }
-
-    if (bestText.length < 80) {
-      const metaDesc =
-        $('meta[property="og:description"]').attr('content')?.trim() ||
-        $('meta[name="description"]').attr('content')?.trim() ||
-        '';
-      if (metaDesc.length > bestText.length) bestText = metaDesc;
-    }
-
-    return {
-      title: pageTitle.replace(/\s+/g, ' ').trim().substring(0, 120),
-      company: jsonLd?.company,
-      description: bestText.replace(/\s+/g, ' ').trim().substring(0, 6000),
-    };
-  }
-
-  private extractJobPostingJsonLd($: cheerio.CheerioAPI): { title?: string; company?: string; description?: string } | null {
-    const scripts = $('script[type="application/ld+json"]');
-    for (let i = 0; i < scripts.length; i++) {
-      try {
-        const parsed = JSON.parse($(scripts[i]).html() || '');
-        const items = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.['@graph']) ? parsed['@graph'] : [parsed];
-        const posting = items.find((item: any) => item?.['@type'] === 'JobPosting');
-        if (posting) {
-          const rawDesc = typeof posting.description === 'string' ? cheerio.load(posting.description).text() : '';
-          return {
-            title: typeof posting.title === 'string' ? posting.title.trim() : undefined,
-            company: typeof posting.hiringOrganization?.name === 'string' ? posting.hiringOrganization.name.trim() : undefined,
-            description: rawDesc.replace(/\s+/g, ' ').trim(),
-          };
-        }
-      } catch {
-        // ignore invalid JSON-LD blocks
-      }
-    }
-    return null;
   }
 }

@@ -147,10 +147,10 @@ describe('LioApply Injectable Packages (@lioapply/*)', () => {
 
     it('builds dynamic Glassdoor search URLs and rejects invalid JSON-RPC payloads', async () => {
       const gd = glassdoor();
-      const urlWithLoc = gd.buildSearchUrl('NodeJS', { label: 'Brasil', locationQuery: 'brasil', providerParams: { glassdoorLocationId: '36' } });
+      const urlWithLoc = gd.buildSearchUrl('NodeJS', { label: 'Brasil', locationQuery: 'brasil', workplaceTypes: ['remote'], providerParams: { glassdoorLocationId: '36' } });
       expect(urlWithLoc).toContain('SRCH_IL.0,6_IC36.htm');
 
-      const urlNoLoc = gd.buildSearchUrl('NodeJS', { label: 'Remoto' });
+      const urlNoLoc = gd.buildSearchUrl('NodeJS', { label: 'Remoto', workplaceTypes: ['remote'] });
       expect(urlNoLoc).toContain('SRCH_KO0,6.htm');
 
       const mcp = createLioApplyMcpServer();

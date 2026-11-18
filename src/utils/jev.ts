@@ -34,8 +34,8 @@ export const JOB_FIT_QUESTIONS = {
   matches_profile: noul(
     "Does this job candidate match the user's desired criteria, acceptable seniority levels, and allowed locations?",
     {
-      true: 'The position fits the target stack, is junior or pleno level, and is in an allowed location (or remote). If the description is concise (e.g. title and company card), a junior or pleno developer, full-stack, frontend, or backend position matches.',
-      false: 'It requires senior/lead level, is an internship, belongs to an unrelated tech stack (e.g. C#, .NET, Java, PHP, mobile-only), is a non-tech position, or is outside allowed locations.',
+      true: 'The position matches at least one of `desired_roles`, uses a stack compatible with `desired_technologies`, has a seniority within `acceptable_levels`, and is in one of `allowed_locations` (or remote when remote is allowed). If the description is concise (e.g. title and company card), judge by the title against `desired_roles` and `acceptable_levels`.',
+      false: 'It requires a seniority listed in `strictly_excluded_levels`, belongs to a tech stack unrelated to `desired_technologies`, is a non-tech position, or is outside `allowed_locations`.',
     },
   ),
   is_actual_job_offer: noul(

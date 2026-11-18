@@ -10,6 +10,7 @@ import { LioApplyCoreModule } from '@lioapply/core';
 import { glassdoor, linkedin, remotar } from '@lioapply/providers';
 import { LioApplyCvModule, typstCvEngine } from '@lioapply/cv';
 import { CvOptimizationService } from './services/cv/cv-optimization.service';
+import { JobPageMetadataService } from './services/cv/job-page-metadata.service';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { CvOptimizationService } from './services/cv/cv-optimization.service';
     BotService,
     JobHistoryRepository,
     CvOptimizationService,
+    JobPageMetadataService,
   ],
 })
 export class AppModule {}

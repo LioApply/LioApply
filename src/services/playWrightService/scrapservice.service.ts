@@ -3,19 +3,13 @@ import * as cheerio from 'cheerio';
 import { Browser, BrowserContext, chromium, Page } from 'playwright';
 import { ILocationOption, IProviderConfig, Isearch } from '../../interfaces/isearch/isearch.interface';
 import { ScrapedPost } from '../../interfaces/ScrapedPost/iscrapedpost.interface';
+import { applyLightweightStealth, CHROMIUM_ARGS } from '../../utils/browser';
 
 interface ScrapeTask {
   provider: IProviderConfig;
   query: string;
   locOption: ILocationOption;
 }
-
-const CHROMIUM_ARGS = [
-  '--no-sandbox',
-  '--disable-setuid-sandbox',
-  '--disable-dev-shm-usage',
-  '--disable-blink-features=AutomationControlled',
-];
 
 @Injectable()
 export class PlaywrightService {
@@ -48,14 +42,7 @@ export class PlaywrightService {
         timezoneId: 'America/Sao_Paulo',
       });
 
-      await context.addInitScript(() => {
-        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-      });
-
-      await context.route('**/*', (route) => {
-        const type = route.request().resourceType();
-        return ['image', 'media', 'font'].includes(type) ? route.abort() : route.continue();
-      });
+      await applyLightweightStealth(context);
 
       return { browser, context };
     } catch (error) {
