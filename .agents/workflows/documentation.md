@@ -32,8 +32,8 @@ src/
   │     ├── yaml-config.loader.ts# Shared pure YAML/Base64/file loader helpers
   │     └── job-config.service.ts# Declarative YAML/ENV search, profile & classifier configuration loader (Config Layer)
   ├── services/
-  │     ├── bot/                 # Orchestrator interface for browser scraping and messaging requests
-  │     ├── cv/                  # On-demand ATS CV optimization (CvConfigService, Multi-provider LLM, Typst PDF compiler)
+  │     ├── cv/                  # On-demand ATS CV optimization (CvConfigService, Multi-provider LLM, Typst PDF compiler,
+  │     │                        #   JobPageMetadataService for job page fetching, cv-webhook.parser for /cv command parsing)
   │     ├── classifier/          # ClassifierService (orchestrator) + providers/ (Groq, Gemini, OpenRouter, Ollama, Jev)
   │     ├── scrapservice/        # Low-level HTTP integrations with Apify (LinkedIn)
   │     ├── glassdoor/           # Low-level HTTP integrations with Apify (Glassdoor)

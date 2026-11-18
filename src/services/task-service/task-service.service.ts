@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { LIOAPPLY_INSTANCE, type LioApplyInstance } from '@lioapply/core';
 import { JobHistoryRepository } from '../../repositories/job-history.repository';
-import { BotService } from '../bot/bot.service';
+import { WhatsappService } from '../whatsapp-service/whatsapp-service.service';
 import { ApprovedJobDto, JobDigestFormatter } from './job-digest.formatter';
 
 @Injectable()
@@ -9,7 +9,7 @@ export class TaskService {
   private readonly logger = new Logger(TaskService.name);
 
   constructor(
-    private readonly botService: BotService,
+    private readonly whatsappService: WhatsappService,
     private readonly historyRepository: JobHistoryRepository,
     private readonly digestFormatter: JobDigestFormatter,
     @Optional() @Inject(LIOAPPLY_INSTANCE) private readonly lio?: LioApplyInstance,
@@ -52,7 +52,7 @@ export class TaskService {
 
     const savedIds = savedRecords.map((r) => r.id).filter((id): id is number => typeof id === 'number');
     try {
-      await this.botService.sendMessage({
+      await this.whatsappService.sendMessage({
         instanceName,
         number: recipientNumber,
         text: this.digestFormatter.format(approvedJobs),

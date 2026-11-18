@@ -14,8 +14,8 @@ const preserveTranslatedDate = (candidate: unknown, original?: string): string =
   const next = nonEmpty(candidate);
   if (!next) return original || '';
   if (!original) return next;
-  const origYears = original.match(/\b\d{4}\b/g) || [];
-  const nextYears = next.match(/\b\d{4}\b/g) || [];
+  const origYears: string[] = original.match(/\b\d{4}\b/g) || [];
+  const nextYears: string[] = next.match(/\b\d{4}\b/g) || [];
   const yearsConsistent =
     origYears.length === 0 || (nextYears.length > 0 && nextYears.every((y) => origYears.includes(y)));
   return yearsConsistent ? next : original;

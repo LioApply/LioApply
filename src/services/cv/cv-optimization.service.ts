@@ -1,10 +1,11 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { BaseCvData, TailoredCvEvaluation } from '../../interfaces/cv/cv.interface';
 import { JobHistoryRepository } from '../../repositories/job-history.repository';
-import { BotService } from '../bot/bot.service';
+import { WhatsappService } from '../whatsapp-service/whatsapp-service.service';
 import { ClassifierService } from '../classifier/classifier.service';
 import { CvConfigService } from './cv-config.service';
 import { CvLlmService } from './cv-llm.service';
+import { parseCvCommand, parseEvolutionWebhook } from './cv-webhook.parser';
 import { JobPageMetadataService } from './job-page-metadata.service';
 import { detectJobLanguage } from './prompts/cv-ats.prompt';
 import { TypstCompilerService } from './typst-compiler.service';
@@ -34,7 +35,7 @@ export class CvOptimizationService {
     private readonly classifierService: ClassifierService,
     private readonly typstTemplateService: TypstTemplateService,
     private readonly typstCompilerService: TypstCompilerService,
-    @Optional() private readonly botService: BotService,
+    @Optional() private readonly whatsappService: WhatsappService,
     private readonly jobPageMetadata: JobPageMetadataService,
   ) {}
 
@@ -110,19 +111,14 @@ export class CvOptimizationService {
   }
 
   async handleEvolutionWebhook(payload: Record<string, unknown>) {
-    const eventData = (Array.isArray(payload?.data) ? payload.data[0] : payload?.data || payload) as Record<string, any>;
-    if (eventData?.key?.fromMe === true) return { status: 'ignored', reason: 'fromMe' };
+    const webhook = parseEvolutionWebhook(payload);
+    if (webhook.fromMe) return { status: 'ignored', reason: 'fromMe' };
 
-    const msg = (eventData?.message || payload?.message || {}) as Record<string, any>;
-    const text = msg?.conversation || msg?.extendedTextMessage?.text || payload?.text || '';
-    const command = this.parseCvCommand(String(text));
+    const command = parseCvCommand(webhook.text);
     if (!command) return { status: 'ignored' };
 
-    const remoteJid = String(eventData?.key?.remoteJid || payload?.number || '');
-    const senderNumber = remoteJid.endsWith('@s.whatsapp.net')
-      ? remoteJid.split('@')[0]?.replace(/\D/g, '') || process.env.WHATSAPP_NUMBER
-      : process.env.WHATSAPP_NUMBER;
-    const instanceName = String(payload?.instance || process.env.INSTANCE_NAME || 'job-bot');
+    const senderNumber = webhook.senderNumber || process.env.WHATSAPP_NUMBER;
+    const instanceName = webhook.instance || process.env.INSTANCE_NAME || 'job-bot';
 
     this.logger.log(`📥 Comando de currículo recebido via WhatsApp: ${JSON.stringify(command)}`);
     const targetLabel = command.type === 'jobId' ? `vaga [#${command.jobId}]` : 'descrição/link enviado';
@@ -147,19 +143,9 @@ export class CvOptimizationService {
     }
   }
 
-  parseCvCommand(messageText: string): { type: 'jobId'; jobId: number } | { type: 'custom'; input: string } | null {
-    if (!messageText) return null;
-    const trimmed = messageText.trim();
-    const idMatch = trimmed.match(/^(?:\/cv|cv|gerar\s+cv|otimizar\s+cv)\s+#?(\d+)\s*$/i);
-    if (idMatch?.[1]) return { type: 'jobId', jobId: Number(idMatch[1]) };
-
-    const customMatch = trimmed.match(/^\/cv\s+([\s\S]+)$/i);
-    return customMatch?.[1]?.trim() ? { type: 'custom', input: customMatch[1].trim() } : null;
-  }
-
   private async notifyWhatsApp(instanceName: string, number: string | undefined, text: string) {
-    if (!number || !instanceName || !this.botService) return;
-    await this.botService.sendMessage({ instanceName, number, text, delay: 500 }).catch(() => undefined);
+    if (!number || !instanceName || !this.whatsappService) return;
+    await this.whatsappService.sendMessage({ instanceName, number, text, delay: 500 }).catch(() => undefined);
   }
 
   private async sendWhatsappPdfIfConfigured(
@@ -171,7 +157,7 @@ export class CvOptimizationService {
   ): Promise<void> {
     const targetNumber = options?.recipientNumber || process.env.WHATSAPP_NUMBER;
     const instanceName = options?.instanceName || process.env.INSTANCE_NAME;
-    if (!(options?.sendWhatsapp ?? true) || !targetNumber || !instanceName || !this.botService) return;
+    if (!(options?.sendWhatsapp ?? true) || !targetNumber || !instanceName || !this.whatsappService) return;
 
     const idTag = jobInfo.id ? `[#${jobInfo.id}] ` : '';
     const companyTag = jobInfo.company ? ` (${jobInfo.company})` : '';
@@ -182,7 +168,7 @@ export class CvOptimizationService {
       jobInfo.url?.startsWith('http') ? `🔗 *Link:* ${jobInfo.url}` : '',
     ].filter(Boolean).join('\n');
 
-    await this.botService.sendMediaDocument({
+    await this.whatsappService.sendMediaDocument({
       instanceName,
       number: targetNumber,
       fileName,

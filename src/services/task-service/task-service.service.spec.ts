@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TaskService } from './task-service.service';
-import { BotService } from '../bot/bot.service';
+import { WhatsappService } from '../whatsapp-service/whatsapp-service.service';
 import { JobHistoryRepository } from '../../repositories/job-history.repository';
 import { JobDigestFormatter } from './job-digest.formatter';
 import { LIOAPPLY_INSTANCE } from '@lioapply/core';
@@ -48,7 +48,7 @@ describe('TaskService', () => {
       providers: [
         TaskService,
         JobDigestFormatter,
-        { provide: BotService, useValue: mockBotService },
+        { provide: WhatsappService, useValue: mockBotService },
         { provide: JobHistoryRepository, useValue: mockHistoryRepository },
         { provide: LIOAPPLY_INSTANCE, useValue: mockLioApply },
       ],

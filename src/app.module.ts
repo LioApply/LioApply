@@ -4,7 +4,6 @@ import { AppController } from './app.controller';
 import { ConfigModule } from '@nestjs/config';
 import { WhatsappService } from './services/whatsapp-service/whatsapp-service.service';
 import { TaskService } from './services/task-service/task-service.service';
-import { BotService } from './services/bot/bot.service';
 import { JobHistoryRepository } from './repositories/job-history.repository';
 import { LioApplyCoreModule } from '@lioapply/core';
 import { glassdoor, linkedin, remotar } from '@lioapply/providers';
@@ -26,7 +25,6 @@ import { JobPageMetadataService } from './services/cv/job-page-metadata.service'
     AppService,
     WhatsappService,
     TaskService,
-    BotService,
     JobHistoryRepository,
     CvOptimizationService,
     JobPageMetadataService,

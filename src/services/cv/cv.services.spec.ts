@@ -8,6 +8,7 @@ import { createProviders } from '../classifier/providers';
 import { CvOptimizationService } from './cv-optimization.service';
 import { BaseCvData } from '../../interfaces/cv/cv.interface';
 import { CvConfigService } from './cv-config.service';
+import { parseCvCommand } from './cv-webhook.parser';
 import { JobPageMetadataService } from './job-page-metadata.service';
 import { detectJobLanguage } from './prompts/cv-ats.prompt';
 
@@ -136,27 +137,27 @@ describe('CV Optimization Pipeline Services', () => {
         new JobPageMetadataService(),
       );
 
-      expect(cvOptService.parseCvCommand('/cv 42')).toEqual({
+      expect(parseCvCommand('/cv 42')).toEqual({
         type: 'jobId',
         jobId: 42,
       });
-      expect(cvOptService.parseCvCommand('/cv #15')).toEqual({
+      expect(parseCvCommand('/cv #15')).toEqual({
         type: 'jobId',
         jobId: 15,
       });
-      expect(cvOptService.parseCvCommand('gerar cv 7')).toEqual({
+      expect(parseCvCommand('gerar cv 7')).toEqual({
         type: 'jobId',
         jobId: 7,
       });
       expect(
-        cvOptService.parseCvCommand(
+        parseCvCommand(
           '/cv Vaga Desenvolvedor React Pleno com TypeScript',
         ),
       ).toEqual({
         type: 'custom',
         input: 'Vaga Desenvolvedor React Pleno com TypeScript',
       });
-      expect(cvOptService.parseCvCommand('bom dia')).toBeNull();
+      expect(parseCvCommand('bom dia')).toBeNull();
     });
 
     it('should orchestrate full optimization for a stored job ID and send PDF via BotService', async () => {
