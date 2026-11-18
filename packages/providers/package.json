@@ -1,6 +1,6 @@
 {
   "name": "@lioapply/providers",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "LioApply Injectable Job Providers (LinkedIn, Glassdoor, Remotar) with subpath exports",
   "main": "../../dist/packages/providers/index.js",
   "types": "../../dist/packages/providers/index.d.ts",

@@ -156,7 +156,7 @@ export function createLioApplyMcpServer(options?: LioApplyOptions) {
             return ok({
               protocolVersion: '2024-11-05',
               capabilities: { tools: {} },
-              serverInfo: { name: '@lioapply/mcp', version: '1.0.0' },
+              serverInfo: { name: '@lioapply/mcp', version: '0.0.1' },
             });
           case 'ping':
             return ok({});
