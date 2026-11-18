@@ -248,5 +248,70 @@ describe('ClassifierService (System-One multi-provider)', () => {
         delete process.env.DEEPSEEK_API_KEY;
       }
     });
+
+    it('builds fallback chain from .env keys or explicit fallbackProviders and fails over on error', async () => {
+      process.env.GROQ_API_KEY = 'gsk-primary';
+      process.env.GEMINI_API_KEY = 'gem-fallback';
+      process.env.OPEN_ROUTER_API_KEY = 'or-fallback';
+
+      const autoService = makeService({ provider: 'groq' });
+      expect(autoService.getActiveProviderName()).toContain('groq');
+      expect(autoService.getFallbackProviderNames()).toEqual([
+        expect.stringContaining('gemini'),
+        expect.stringContaining('openrouter'),
+      ]);
+
+      const customOrderService = makeService({
+        provider: 'groq',
+        fallbackProviders: ['openrouter'],
+      });
+      expect(customOrderService.getFallbackProviderNames()).toEqual([
+        expect.stringContaining('openrouter'),
+      ]);
+
+      const failingPrimary = {
+        systemOne: jest.fn().mockRejectedValue(new Error('HTTP 429: Rate limit exceeded')),
+      };
+      const workingFallback = {
+        systemOne: jest.fn().mockResolvedValue({
+          answers: {
+            matches_profile: { noul: 0.9 },
+            is_actual_job_offer: { noul: 0.95 },
+          },
+        }),
+      };
+
+      customOrderService.setClientForTesting(failingPrimary, 'groq (primary)', [
+        { client: workingFallback, name: 'openrouter (fallback)' },
+      ]);
+
+      const res = await customOrderService.evaluateJob(
+        { title: 'Dev Node Pleno', company: 'Acme', text: 'Node.js, TypeScript' },
+        sampleProfile,
+      );
+      expect(res.shouldApply).toBe(true);
+      expect(res.score).toBe(90);
+      expect(failingPrimary.systemOne).toHaveBeenCalledTimes(1);
+      expect(workingFallback.systemOne).toHaveBeenCalledTimes(1);
+      expect(customOrderService.getActiveProviderName()).toBe('openrouter (fallback)');
+    });
+
+    it('records friendly AllProvidersExhaustedError when all classifier providers fail', async () => {
+      const service = makeService();
+      const failing1 = { systemOne: jest.fn().mockRejectedValue(new Error('429 quota exceeded')) };
+      const failing2 = { systemOne: jest.fn().mockRejectedValue(new Error('503 service unavailable')) };
+
+      service.setClientForTesting(failing1, 'groq', [{ client: failing2, name: 'gemini' }]);
+
+      const res = await service.evaluateJob(
+        { title: 'Dev Node', company: 'Acme', text: 'Node.js' },
+        sampleProfile,
+      );
+      expect(res.shouldApply).toBe(false);
+      const exhausted = service.getLastExhaustedError();
+      expect(exhausted).not.toBeNull();
+      expect(exhausted?.attemptedProviders).toEqual(['groq', 'gemini']);
+      expect(exhausted?.message).toContain('Limite de IA atingido no LioApply');
+    });
   });
 });

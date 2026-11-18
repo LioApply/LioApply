@@ -69,6 +69,7 @@ export interface SearchAndClassifyOutput {
   uniqueCandidates: NormalizedCandidateJob[];
   approvedJobs: ApprovedCandidateJobDto[];
   digestText: string;
+  classifierExhaustedMessage?: string;
 }
 
 export interface ScrapeJobsParams {

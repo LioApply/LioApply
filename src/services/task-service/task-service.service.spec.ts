@@ -69,4 +69,24 @@ describe('TaskService', () => {
     expect(approved[0].id).toBe(42);
     expect(mockBotService.sendMessage).toHaveBeenCalledTimes(1);
   });
+
+  it('sends a friendly WhatsApp alert when all classifier providers are exhausted', async () => {
+    mockLioApply.searchAndClassify.mockResolvedValueOnce({
+      rawCount: 4,
+      uniqueCandidates: [{ title: 'Dev', company: 'X', text: 'Y', url: 'https://x' }],
+      approvedJobs: [],
+      digestText: '',
+      classifierExhaustedMessage: '⚠️ *Limite de IA atingido no LioApply*',
+    });
+
+    const approved = await service.runScrapeJob();
+
+    expect(approved).toEqual([]);
+    expect(mockHistoryRepository.save).not.toHaveBeenCalled();
+    expect(mockBotService.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining('Limite de IA atingido no LioApply'),
+      }),
+    );
+  });
 });

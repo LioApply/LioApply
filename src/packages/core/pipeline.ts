@@ -129,11 +129,13 @@ export async function runSearchAndClassify(
 ): Promise<SearchAndClassifyOutput> {
   const { rawCount, uniqueCandidates } = await runScrapeAndDeduplicate(deps, params);
   const approvedJobs = await runClassifyCandidates(deps, uniqueCandidates);
+  const exhaustedErr = deps.classifierService.getLastExhaustedError?.();
   return {
     rawCount,
     uniqueCandidates,
     approvedJobs,
     digestText: approvedJobs.length > 0 ? deps.digestFormatter.format(approvedJobs) : '',
+    ...(exhaustedErr ? { classifierExhaustedMessage: exhaustedErr.message } : {}),
   };
 }
 

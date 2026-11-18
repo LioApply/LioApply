@@ -394,5 +394,70 @@ describe('CV Optimization Pipeline Services', () => {
 
       expect(templateService.escapeTypst('See https://example.com // note')).toBe('See https:\\/\\/example.com \\/\\/ note');
     });
+
+    it('falls back to secondary CV LLM providers on failure and throws friendly message when all fail', async () => {
+      process.env.GROQ_API_KEY = 'gsk-1';
+      process.env.GEMINI_API_KEY = 'gem-2';
+
+      const cvCfg = {
+        getCvOptimizationConfig: () => ({
+          provider: 'groq',
+          fallbackProviders: ['gemini'],
+          baseCvPath: './cv.base.yaml',
+        }),
+      } as unknown as CvConfigService;
+
+      const groqProv = {
+        id: 'groq',
+        supportsChat: true,
+        isConfigured: () => true,
+        createClient: () => null,
+        resolveChatConfig: () => ({
+          provider: 'groq',
+          providerLabel: 'Groq',
+          apiKey: 'gsk-1',
+          model: 'llama-3.3-70b',
+          baseUrl: 'https://api.groq.com',
+        }),
+        chatCompletion: jest.fn().mockRejectedValue(new Error('HTTP 429 rate limit')),
+      };
+      const geminiProv = {
+        id: 'gemini',
+        supportsChat: true,
+        isConfigured: () => true,
+        createClient: () => null,
+        resolveChatConfig: () => ({
+          provider: 'gemini',
+          providerLabel: 'Google Gemini',
+          apiKey: 'gem-2',
+          model: 'gemini-2.5-flash-lite',
+          baseUrl: 'https://generativelanguage.googleapis.com',
+        }),
+        chatCompletion: jest.fn().mockResolvedValue(
+          JSON.stringify({
+            headline: 'Backend Engineer | Node.js',
+            summary: 'Tailored via fallback provider.',
+          }),
+        ),
+      };
+
+      const llm = new CvLlmService(cvCfg, [groqProv, geminiProv]);
+      const patch = await llm.generateTailoredCvPatch(sampleBaseCv, {
+        title: 'Backend Engineer',
+        description: 'Node.js and TypeScript role',
+      });
+
+      expect(groqProv.chatCompletion).toHaveBeenCalledTimes(1);
+      expect(geminiProv.chatCompletion).toHaveBeenCalledTimes(1);
+      expect(patch.summary).toBe('Tailored via fallback provider.');
+
+      geminiProv.chatCompletion.mockRejectedValueOnce(new Error('HTTP 429 quota exceeded'));
+      await expect(
+        llm.generateTailoredCvPatch(sampleBaseCv, {
+          title: 'Backend Engineer',
+          description: 'Node.js and TypeScript role',
+        }),
+      ).rejects.toThrow(/Limite de IA atingido no LioApply/);
+    });
   });
 });

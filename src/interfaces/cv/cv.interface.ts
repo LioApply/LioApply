@@ -103,6 +103,7 @@ export interface CvOptimizationConfig {
   model?: string;
   baseUrl?: string;
   baseCvPath: string;
+  fallbackProviders?: CvLlmProviderType[];
 }
 
 export type SupportedCvLanguage = 'pt' | 'en' | 'es';

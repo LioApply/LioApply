@@ -7,6 +7,7 @@ export interface ClassifierProviderConfig {
   apiKey?: string;
   model?: string;
   baseUrl?: string;
+  fallbackProviders?: ClassifierProviderType[];
 }
 
 export interface JobEvaluationResult {

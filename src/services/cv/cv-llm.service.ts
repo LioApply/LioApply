@@ -7,6 +7,7 @@ import { CvConfigService } from './cv-config.service';
 import { buildAtsCvOptimizationPrompt } from './prompts/cv-ats.prompt';
 import { cleanList, nonEmpty } from '../../utils/text';
 import { preserveTranslatedDate } from '../../utils/cv';
+import { AllProvidersExhaustedError } from '../../utils/provider-fallback';
 
 const AUTO_ORDER = ['groq', 'gemini', 'openrouter'];
 @Injectable()
@@ -25,17 +26,75 @@ export class CvLlmService {
     baseCv: BaseCvData,
     jobInfo: JobPostingInfo,
   ): Promise<CvTailoredPatchDto> {
-    const { provider, config } = this.resolveProviderAndConfig();
+    const chain = this.resolveProviderChain();
     const messages = buildAtsCvOptimizationPrompt(baseCv, jobInfo);
-    this.logger.log(
-      `🤖 Solicitando adaptação ATS via ${config.providerLabel} (modelo: ${config.model}) para a vaga "${jobInfo.title}"...`,
-    );
-    const rawText = await provider.chatCompletion!(messages, config);
-    return this.parseTailoredPatchJson(rawText, baseCv);
+    const attempted: string[] = [];
+    const errors: string[] = [];
+
+    for (let idx = 0; idx < chain.length; idx++) {
+      const { provider, config } = chain[idx];
+      const label = `${config.providerLabel} (${config.model})`;
+      attempted.push(label);
+      try {
+        this.logger.log(
+          `🤖 Solicitando adaptação ATS via ${config.providerLabel} (modelo: ${config.model}) para a vaga "${jobInfo.title}"...`,
+        );
+        const rawText = await provider.chatCompletion!(messages, config);
+        return this.parseTailoredPatchJson(rawText, baseCv);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        errors.push(`[${label}] ${msg}`);
+        const next = chain[idx + 1];
+        if (next) {
+          this.logger.warn(
+            `⚠️ Falha ao otimizar CV com ${label}: ${msg}. Acionando fallback para ${next.config.providerLabel} (${next.config.model})...`,
+          );
+        } else {
+          this.logger.error(`❌ Todos os providers de otimização de CV falharam: ${errors.join(' | ')}`);
+        }
+      }
+    }
+
+    throw new AllProvidersExhaustedError('cv', attempted, errors);
   }
 
   resolveLlmProvider(): ChatProviderConfig {
     return this.resolveProviderAndConfig().config;
+  }
+
+  resolveProviderChain(): Array<{ provider: ClassifierProvider; config: ChatProviderConfig }> {
+    const primary = this.resolveProviderAndConfig();
+    const cvConfig = this.cvConfigService.getCvOptimizationConfig();
+    const explicitList = cvConfig.fallbackProviders;
+
+    const candidateIds: string[] = explicitList?.length
+      ? explicitList.map((id) => (id.trim().toLowerCase() === 'openai-compatible' ? 'ollama' : id.trim().toLowerCase()))
+      : [
+          ...AUTO_ORDER,
+          ...this.providers.filter((p) => p.supportsChat !== false).map((p) => p.id),
+        ];
+
+    const seen = new Set<string>([primary.provider.id]);
+    const chain: Array<{ provider: ClassifierProvider; config: ChatProviderConfig }> = [primary];
+
+    for (const candidateId of candidateIds) {
+      if (!candidateId || seen.has(candidateId)) continue;
+      seen.add(candidateId);
+
+      const prov = this.providers.find((p) => p.id === candidateId && p.supportsChat !== false);
+      if (!prov?.resolveChatConfig || !prov.chatCompletion) continue;
+      const explicitlyRequested = Boolean(explicitList?.length);
+      if (!prov.isConfigured() && !(explicitlyRequested && prov.id === 'ollama')) continue;
+
+      try {
+        const config = prov.resolveChatConfig({});
+        chain.push({ provider: prov, config });
+      } catch {
+        // skip unconfigured fallback provider
+      }
+    }
+
+    return chain;
   }
 
   private resolveProviderAndConfig(): { provider: ClassifierProvider; config: ChatProviderConfig } {

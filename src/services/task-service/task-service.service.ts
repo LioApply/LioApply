@@ -23,8 +23,26 @@ export class TaskService {
     }
 
     const existingJobs = await this.historyRepository.getRecentJobs(300, 30);
-    const { approvedJobs } = await this.lio.searchAndClassify({ existingJobs });
+    const { approvedJobs, classifierExhaustedMessage } = await this.lio.searchAndClassify({ existingJobs });
     if (approvedJobs.length === 0) {
+      if (classifierExhaustedMessage) {
+        const instanceName = process.env.INSTANCE_NAME;
+        const recipientNumber = process.env.WHATSAPP_NUMBER;
+        if (instanceName && recipientNumber) {
+          try {
+            await this.whatsappService.sendMessage({
+              instanceName,
+              number: recipientNumber,
+              text: classifierExhaustedMessage,
+              delay: 1000,
+            });
+          } catch (err) {
+            this.logger.warn(
+              `Não foi possível enviar alerta de limite de IA no WhatsApp: ${err instanceof Error ? err.message : err}`,
+            );
+          }
+        }
+      }
       this.logger.log('Nenhuma nova vaga aprovada passou pelos filtros nesta execução.');
       return [];
     }

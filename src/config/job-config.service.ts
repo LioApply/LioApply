@@ -61,7 +61,18 @@ export class JobConfigService implements OnModuleInit {
 
   getClassifierConfig(): Partial<ClassifierProviderConfig> {
     const c = this.config?.classifier;
-    return { provider: c?.provider || 'auto', model: c?.model, baseUrl: c?.baseUrl };
+    const envFallbacks = process.env.CLASSIFIER_FALLBACK_PROVIDERS
+      ? csv(process.env.CLASSIFIER_FALLBACK_PROVIDERS)
+      : undefined;
+    const yamlFallbacks = Array.isArray(c?.fallbackProviders)
+      ? c.fallbackProviders.map((p) => String(p).trim().toLowerCase()).filter(Boolean)
+      : undefined;
+    return {
+      provider: c?.provider || 'auto',
+      model: c?.model,
+      baseUrl: c?.baseUrl,
+      fallbackProviders: envFallbacks?.length ? envFallbacks : yamlFallbacks,
+    };
   }
 
   private validateConfig(config: AppJobConfig, source: string) {

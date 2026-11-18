@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { JobConfigService } from '../../config/job-config.service';
 import { BaseCvData, CvOptimizationConfig } from '../../interfaces/cv/cv.interface';
+import { csv } from '../../utils/collections';
 import { findExistingFile, parseYamlObject } from '../../utils/yaml';
 
 @Injectable()
@@ -23,12 +24,17 @@ export class CvConfigService {
     }
 
     const envProvider = process.env.CV_PROVIDER?.trim() as CvOptimizationConfig['provider'] | undefined;
+    const envFallbacks = process.env.CV_FALLBACK_PROVIDERS ? csv(process.env.CV_FALLBACK_PROVIDERS) : undefined;
+    const yamlFallbacks = Array.isArray(yamlCv?.fallbackProviders)
+      ? yamlCv.fallbackProviders.map((p) => String(p).trim().toLowerCase()).filter(Boolean)
+      : undefined;
 
     return {
       provider: envProvider || yamlCv?.provider || 'auto',
       model: process.env.CV_MODEL?.trim() || yamlCv?.model,
       baseUrl: process.env.CV_BASE_URL?.trim() || yamlCv?.baseUrl,
       baseCvPath: process.env.CV_BASE_PATH || yamlCv?.baseCvPath || path.resolve(process.cwd(), 'cv.base.yaml'),
+      fallbackProviders: envFallbacks?.length ? envFallbacks : yamlFallbacks,
     };
   }
 

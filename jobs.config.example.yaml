@@ -84,6 +84,10 @@ profile:
 
 classifier:
   provider: "auto"
+  # Ordem opcional de fallback caso o provider principal falhe ou atinja rate limit (se omitido, usa as demais chaves do .env):
+  # fallbackProviders:
+  #   - "gemini"
+  #   - "openrouter"
 
 # Configurações de Otimização de Currículo (Sob Demanda)
 # Provedor de LLM (openrouter | groq | gemini | ollama | openai-compatible | auto)
@@ -91,3 +95,6 @@ cvOptimization:
   provider: "auto"
   model: "openrouter/free"
   baseCvPath: "./cv.base.yaml"
+  # fallbackProviders:
+  #   - "groq"
+  #   - "gemini"
