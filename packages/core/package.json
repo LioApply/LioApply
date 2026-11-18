@@ -1,6 +1,6 @@
 {
   "name": "@lioapply/core",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "LioApply Core Engine — System-One Multi-Provider Classifier, Deduplication, Config, and SDK",
   "main": "../../dist/packages/core/index.js",
   "types": "../../dist/packages/core/index.d.ts",

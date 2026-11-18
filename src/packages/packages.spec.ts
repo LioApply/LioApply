@@ -102,7 +102,7 @@ describe('LioApply Injectable Packages (@lioapply/*)', () => {
       });
       expect(initRes?.result).toEqual(
         expect.objectContaining({
-          serverInfo: { name: '@lioapply/mcp', version: '0.0.1' },
+          serverInfo: { name: '@lioapply/mcp', version: '0.1.0' },
         }),
       );
 

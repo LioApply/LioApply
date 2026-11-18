@@ -1,6 +1,6 @@
 {
   "name": "@lioapply/mcp",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "LioApply Official Model Context Protocol (MCP) Server",
   "main": "../../dist/packages/mcp/index.js",
   "types": "../../dist/packages/mcp/index.d.ts",

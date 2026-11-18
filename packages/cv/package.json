@@ -1,6 +1,6 @@
 {
   "name": "@lioapply/cv",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "LioApply On-Demand ATS Resume Optimizer & Typst PDF Compiler",
   "main": "../../dist/packages/cv/index.js",
   "types": "../../dist/packages/cv/index.d.ts",
