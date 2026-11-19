@@ -7,6 +7,7 @@ import { createLioApplyMcpServer } from './packages/mcp';
 import { CvOptimizationService } from './services/cv/cv-optimization.service';
 import { TaskService } from './services/task-service/task-service.service';
 import { getEvolutionApiKey, getEvolutionBaseUrl } from './utils/evolution';
+import { HttpValidationPipe } from './utils/http-security';
 
 async function registerEvolutionWebhook(port: number, logger: Logger) {
   const baseUrl = getEvolutionBaseUrl('http://localhost:8080');
@@ -18,8 +19,13 @@ async function registerEvolutionWebhook(port: number, logger: Logger) {
     return;
   }
 
-  const webhookUrl =
+  const baseWebhookUrl =
     process.env.WEBHOOK_PUBLIC_URL || `http://${process.env.WEBHOOK_HOST_IP || '172.17.0.1'}:${port}/webhook/evolution`;
+  const webhookSecret = (process.env.WEBHOOK_SECRET || process.env.EVOLUTION_WEBHOOK_SECRET || '').trim();
+  const webhookUrl =
+    webhookSecret && !baseWebhookUrl.includes('secret=')
+      ? `${baseWebhookUrl}${baseWebhookUrl.includes('?') ? '&' : '?'}secret=${encodeURIComponent(webhookSecret)}`
+      : baseWebhookUrl;
 
   try {
     const response = await fetch(`${baseUrl}/webhook/set/${instanceName}`, {
@@ -73,6 +79,7 @@ async function bootstrap() {
 
   if (args.includes('--listen')) {
     const httpApp = await NestFactory.create(AppModule);
+    httpApp.useGlobalPipes(new HttpValidationPipe());
     httpApp.enableShutdownHooks();
     const port = Number(process.env.PORT || 3000);
     await httpApp.listen(port, '0.0.0.0');

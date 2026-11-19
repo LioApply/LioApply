@@ -1,10 +1,12 @@
+import { BadRequestException, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CvOptimizationService } from './services/cv/cv-optimization.service';
 import { WhatsappService } from './services/whatsapp-service/whatsapp-service.service';
-import type { CreateInstanceDto } from './interfaces/ICreateInstanceDTO/icreateinstancedto.interface';
-import type { SendMessageDTO } from './interfaces/SendMessageDTO';
+import { CreateInstanceDto } from './interfaces/ICreateInstanceDTO/icreateinstancedto.interface';
+import { SendMessageDTO } from './interfaces/SendMessageDTO';
+import { ApiKeyAuthGuard, HttpValidationPipe, WebhookSecretGuard } from './utils/http-security';
 
 describe('AppController', () => {
   let appController: AppController;
@@ -115,6 +117,75 @@ describe('AppController', () => {
 
       expect(cvOptimizationService.handleEvolutionWebhook).toHaveBeenCalledWith(payload);
       expect(result).toEqual({ status: 'completed' });
+    });
+  });
+
+  describe('HTTP Security Guards & ValidationPipe (#28)', () => {
+    const originalEnv = process.env;
+    const mockContext = (req: Record<string, unknown>): ExecutionContext =>
+      ({
+        switchToHttp: () => ({ getRequest: () => req }),
+      }) as unknown as ExecutionContext;
+
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+      delete process.env.HTTP_API_KEY;
+      delete process.env.AUTHENTICATION_API_KEY;
+      delete process.env.apiKey;
+      delete process.env.WEBHOOK_SECRET;
+      delete process.env.EVOLUTION_WEBHOOK_SECRET;
+    });
+
+    afterAll(() => {
+      process.env = originalEnv;
+    });
+
+    it('enforces ApiKeyAuthGuard on administrative routes', () => {
+      const guard = new ApiKeyAuthGuard();
+      expect(() => guard.canActivate(mockContext({ headers: {} }))).toThrow(UnauthorizedException);
+
+      process.env.AUTHENTICATION_API_KEY = 'secret-123';
+      expect(() => guard.canActivate(mockContext({ headers: { apikey: 'wrong' } }))).toThrow(UnauthorizedException);
+      expect(guard.canActivate(mockContext({ headers: { apikey: 'secret-123' } }))).toBe(true);
+      expect(guard.canActivate(mockContext({ headers: { authorization: 'Bearer secret-123' } }))).toBe(true);
+    });
+
+    it('enforces WebhookSecretGuard when WEBHOOK_SECRET is configured', () => {
+      const guard = new WebhookSecretGuard();
+      expect(guard.canActivate(mockContext({ headers: {}, body: {} }))).toBe(true);
+
+      process.env.WEBHOOK_SECRET = 'wh-sec-999';
+      expect(() => guard.canActivate(mockContext({ headers: {}, query: {} }))).toThrow(UnauthorizedException);
+      expect(guard.canActivate(mockContext({ headers: { 'x-webhook-secret': 'wh-sec-999' } }))).toBe(true);
+      expect(guard.canActivate(mockContext({ headers: {}, query: { secret: 'wh-sec-999' } }))).toBe(true);
+    });
+
+    it('validates CreateInstanceDto, SendMessageDTO, and :instanceName param at runtime', () => {
+      const pipe = new HttpValidationPipe();
+
+      expect(() =>
+        pipe.transform({ instanceName: 'bad name!' }, { type: 'body', metatype: CreateInstanceDto }),
+      ).toThrow(BadRequestException);
+
+      const validCreate = pipe.transform(
+        { instanceName: 'job-bot', qrcode: true },
+        { type: 'body', metatype: CreateInstanceDto },
+      ) as CreateInstanceDto;
+      expect(validCreate.instanceName).toBe('job-bot');
+
+      expect(() =>
+        pipe.transform({ number: 'invalid', text: 'hi' }, { type: 'body', metatype: SendMessageDTO }),
+      ).toThrow(BadRequestException);
+
+      const validMsg = pipe.transform(
+        { number: '5511999999999', text: 'Olá!', delay: 500 },
+        { type: 'body', metatype: SendMessageDTO },
+      ) as SendMessageDTO;
+      expect(validMsg.number).toBe('5511999999999');
+
+      expect(() =>
+        pipe.transform('../etc/passwd', { type: 'param', data: 'instanceName', metatype: String }),
+      ).toThrow(BadRequestException);
     });
   });
 });
