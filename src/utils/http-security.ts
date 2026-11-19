@@ -41,8 +41,7 @@ function extractRequestToken(req: Record<string, any>): string {
     headerVal('x-webhook-secret').trim() ||
     extractBearerToken(headerVal('authorization')) ||
     (typeof req?.query?.secret === 'string' ? req.query.secret.trim() : '') ||
-    (typeof req?.query?.token === 'string' ? req.query.token.trim() : '') ||
-    (typeof req?.body?.apikey === 'string' ? req.body.apikey.trim() : '')
+    (typeof req?.query?.token === 'string' ? req.query.token.trim() : '')
   );
 }
 
@@ -77,22 +76,17 @@ export class ApiKeyAuthGuard implements CanActivate {
 @Injectable()
 export class WebhookSecretGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest<Record<string, any>>();
     const webhookSecret = (process.env.WEBHOOK_SECRET || process.env.EVOLUTION_WEBHOOK_SECRET || '').trim();
+    if (!webhookSecret) return true;
+
+    const req = context.switchToHttp().getRequest<Record<string, any>>();
     const apiKey = (process.env.HTTP_API_KEY || getEvolutionApiKey()).trim();
     const provided = extractRequestToken(req);
 
-    if (webhookSecret) {
-      const matchesWebhook = Boolean(provided && safeCompare(provided, webhookSecret));
-      const matchesApiKey = Boolean(provided && apiKey && safeCompare(provided, apiKey));
-      if (!matchesWebhook && !matchesApiKey) {
-        throw new UnauthorizedException('Webhook secret inválido ou ausente.');
-      }
-      return true;
-    }
-
-    if (provided && apiKey && !safeCompare(provided, apiKey)) {
-      throw new UnauthorizedException('Credencial de webhook inválida.');
+    const matchesWebhook = Boolean(provided && safeCompare(provided, webhookSecret));
+    const matchesApiKey = Boolean(provided && apiKey && safeCompare(provided, apiKey));
+    if (!matchesWebhook && !matchesApiKey) {
+      throw new UnauthorizedException('Webhook secret inválido ou ausente.');
     }
     return true;
   }

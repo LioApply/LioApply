@@ -26,7 +26,11 @@ ensure_listener() {
 
     if [ "$force_restart" = "true" ]; then
         pkill -f "dist/main.*--listen" 2>/dev/null || true
-        sleep 1
+        for _ in 1 2 3 4 5; do
+            pgrep -f "dist/main.*--listen" > /dev/null 2>&1 || break
+            sleep 1
+        done
+        pkill -9 -f "dist/main.*--listen" 2>/dev/null || true
     fi
 
     if ! pgrep -f "dist/main.*--listen" > /dev/null 2>&1; then
