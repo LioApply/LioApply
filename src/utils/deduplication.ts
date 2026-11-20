@@ -41,16 +41,37 @@ export const normalizeJobText = (text?: string): string =>
         .trim()
     : '';
 
+export const normalizeJobUrl = (url?: string): string => {
+  const trimmed = url?.trim();
+  if (!trimmed) return '';
+  try {
+    const parsed = new URL(trimmed);
+    return `${parsed.origin}${parsed.pathname}`.replace(/\/+$/, '').toLowerCase();
+  } catch {
+    return trimmed.split(/[?#]/)[0].replace(/\/+$/, '').toLowerCase();
+  }
+};
+
 export const generateJobKey = (title: string, company?: string): string =>
   `${normalizeJobText(title)}:::${normalizeJobText(company) || 'sem-empresa'}`;
 
-export const isDuplicateJob = (candidate: JobIdentity, existingKeys: Set<string>): boolean =>
-  existingKeys.has(generateJobKey(candidate.title, candidate.company));
+export const generateUrlKey = (url?: string): string => {
+  const clean = normalizeJobUrl(url);
+  return clean ? `url:::${clean}` : '';
+};
+
+export const isDuplicateJob = (candidate: JobIdentity, existingKeys: Set<string>): boolean => {
+  if (candidate.title && existingKeys.has(generateJobKey(candidate.title, candidate.company))) return true;
+  const urlKey = generateUrlKey(candidate.url);
+  return Boolean(urlKey && existingKeys.has(urlKey));
+};
 
 export function createJobKeySet(jobs: JobIdentity[]): Set<string> {
   const set = new Set<string>();
   for (const job of jobs) {
     if (job?.title) set.add(generateJobKey(job.title, job.company));
+    const urlKey = generateUrlKey(job?.url);
+    if (urlKey) set.add(urlKey);
   }
   return set;
 }
@@ -60,11 +81,11 @@ export function deduplicateJobs<T extends JobIdentity>(jobs: T[], existingKeys?:
   const unique: T[] = [];
   for (const job of jobs) {
     if (!job?.title) continue;
-    const key = generateJobKey(job.title, job.company);
-    if (!seen.has(key)) {
-      seen.add(key);
-      unique.push(job);
-    }
+    if (isDuplicateJob(job, seen)) continue;
+    seen.add(generateJobKey(job.title, job.company));
+    const urlKey = generateUrlKey(job.url);
+    if (urlKey) seen.add(urlKey);
+    unique.push(job);
   }
   return unique;
 }
@@ -72,7 +93,9 @@ export function deduplicateJobs<T extends JobIdentity>(jobs: T[], existingKeys?:
 @Injectable()
 export class JobDeduplicationService {
   normalize = normalizeJobText;
+  normalizeUrl = normalizeJobUrl;
   createKey = generateJobKey;
+  createUrlKey = generateUrlKey;
   isDuplicate = isDuplicateJob;
   createKeySet = createJobKeySet;
   deduplicate = deduplicateJobs;

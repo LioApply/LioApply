@@ -80,10 +80,12 @@ export async function runScrapeAndDeduplicate(
   for (const post of rawPosts) {
     const normalized = normalizeScrapedPost(post);
     if (!normalized) continue;
-    if (deps.deduplicationService.isDuplicate({ title: normalized.title, company: normalized.company }, seenKeys)) {
+    if (deps.deduplicationService.isDuplicate(normalized, seenKeys)) {
       continue;
     }
     seenKeys.add(deps.deduplicationService.createKey(normalized.title, normalized.company));
+    const urlKey = deps.deduplicationService.createUrlKey(normalized.url);
+    if (urlKey) seenKeys.add(urlKey);
     uniqueCandidates.push(normalized);
   }
 

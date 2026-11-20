@@ -63,6 +63,27 @@ describe('Job Deduplication Utils', () => {
         ),
       ).toBe(false);
     });
+
+    it('should identify duplicates by canonical URL even when company or query params differ', () => {
+      const keySet = createJobKeySet([
+        {
+          title: 'Vaga: Desenvolvedor(a) Full Stack Pleno',
+          company: '',
+          url: 'https://remotar.com.br/job/170705/tech6-group/desenvolvedor(a)-full-stack-pleno',
+        },
+      ]);
+
+      expect(
+        isDuplicateJob(
+          {
+            title: 'Desenvolvedor(a) Full Stack Pleno',
+            company: 'Tech6 Group',
+            url: 'https://remotar.com.br/job/170705/tech6-group/desenvolvedor(a)-full-stack-pleno?utm_source=test',
+          },
+          keySet,
+        ),
+      ).toBe(true);
+    });
   });
 
   describe('deduplicateJobs', () => {

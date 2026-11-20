@@ -54,15 +54,54 @@ export class PlaywrightService {
     const tasks = this.buildTasks(providers, queries, locations);
     if (tasks.length === 0) return [];
 
+    const httpTasks = tasks.filter((t) => typeof t.provider.fetchJobs === 'function');
+    const browserTasks = tasks.filter((t) => typeof t.provider.fetchJobs !== 'function');
+
+    const httpResultsPromise =
+      httpTasks.length > 0 ? this.runHttpWorkerPool(httpTasks, concurrency) : Promise.resolve<ScrapedPost[]>([]);
+
+    if (browserTasks.length === 0) {
+      return httpResultsPromise;
+    }
+
     const { browser, context } = await this.startBrowser();
     try {
-      return await this.runWorkerPool(context, tasks, concurrency);
+      const [httpJobs, browserJobs] = await Promise.all([
+        httpResultsPromise,
+        this.runWorkerPool(context, browserTasks, concurrency),
+      ]);
+      return [...httpJobs, ...browserJobs];
     } catch (error) {
       this.logger.error('Erro crítico no processo de scrape:', error);
       throw error;
     } finally {
       await browser.close();
     }
+  }
+
+  private async runHttpWorkerPool(tasks: ScrapeTask[], concurrency: number): Promise<ScrapedPost[]> {
+    const allJobs: ScrapedPost[] = [];
+    let taskIndex = 0;
+    const safeConcurrency = Number.isFinite(concurrency) && concurrency >= 1 ? Math.floor(concurrency) : 1;
+    const workerCount = Math.min(safeConcurrency, tasks.length);
+
+    await Promise.all(
+      Array.from({ length: workerCount }, async () => {
+        while (taskIndex < tasks.length) {
+          const task = tasks[taskIndex++];
+          if (!task?.provider.fetchJobs) continue;
+          try {
+            const url = task.provider.buildSearchUrl(task.query, task.locOption);
+            this.logger.log(`[${task.provider.name}] (${task.locOption.label || 'HTTP'}) Consultando feed/API: ${url}`);
+            const posts = await task.provider.fetchJobs(task.query, task.locOption);
+            allJobs.push(...posts);
+          } catch (err) {
+            this.logger.error(`Erro na coleta HTTP [${task.provider.name} | ${task.query}]:`, err);
+          }
+        }
+      }),
+    );
+    return allJobs;
   }
 
   async scrape(search: Isearch): Promise<ScrapedPost[]> {

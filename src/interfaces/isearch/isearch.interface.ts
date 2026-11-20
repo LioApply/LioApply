@@ -1,7 +1,7 @@
 export type WorkplaceType = 'remote' | 'onsite' | 'hybrid';
 
 export interface ILocationOption {
-  provider?: 'linkedin' | 'glassdoor';
+  provider?: string;
   label: string;
   workplaceTypes: WorkplaceType[];
   locationQuery?: string;
@@ -23,6 +23,8 @@ export interface IProviderConfig {
   supportsLocation?: (location: ILocationOption) => boolean;
   isLinkedinPosts?: boolean;
   selectors: IProviderSelectors;
+  /** Optional direct HTTP/RSS/JSON fetcher that bypasses Playwright when present. */
+  fetchJobs?: (query: string, location?: ILocationOption) => Promise<import('../ScrapedPost/iscrapedpost.interface').ScrapedPost[]>;
 }
 
 export interface Isearch {

@@ -6,7 +6,15 @@
 # ==============================================================================
 
 search:
-  # Termos de busca enviados aos provedores (Glassdoor, Remotar, LinkedIn)
+  # Provedores ativos (linkedin | glassdoor | remotar | indeed | remotive | github-vagas | weworkremotely)
+  # providers:
+  #   - "linkedin"
+  #   - "remotar"
+  #   - "github-vagas"
+  #   - "remotive"
+  #   - "indeed"
+
+  # Termos de busca enviados aos provedores
   queries:
     - "desenvolvedor full-stack Júnior"
     - "desenvolvedor full-stack pleno"

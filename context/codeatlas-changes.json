@@ -379,6 +379,39 @@
         "description": "Removed Kev completely and simplified classifier-clients.ts from 662 to 361 lines",
         "timestamp": "2026-11-14T22:11:47.714Z"
       }
+    },
+    {
+      "graphType": "Code",
+      "id": "90c305c6-4bb7-486e-aa88-65ee12f1d8f2",
+      "type": "code_change",
+      "data": {
+        "file": "src/utils/deduplication.ts",
+        "agentThought": "bug",
+        "description": "Old jobs (IDs #1-#12 from Remotar) were re-sent in WhatsApp digest because getRecentJobs(300, 30) cut off records beyond 300 rows or 30 days, and deduplication only checked title+company without checking canonical URL. When save() hit onConflictDoUpdate on sentJobs.url, it returned the old row IDs (#1, #4, #8, #10, #11, #12) and sent them again.",
+        "timestamp": "2026-11-20T01:30:09.899Z"
+      }
+    },
+    {
+      "graphType": "Code",
+      "id": "420fd5e1-02f7-4c07-b83d-27d4905b4e8f",
+      "type": "code_change",
+      "data": {
+        "file": "src/utils/deduplication.ts",
+        "agentThought": "fix",
+        "description": "Added canonical URL deduplication (normalizeJobUrl + generateUrlKey) alongside title+company deduplication in JobDeduplicationService and pipeline.ts, and increased getRecentJobs default limit to 1000 without a 30-day cutoff.",
+        "timestamp": "2026-11-20T01:30:11.160Z"
+      }
+    },
+    {
+      "graphType": "Code",
+      "id": "8bb404fb-6424-4963-ada2-25b5162d1a1a",
+      "type": "code_change",
+      "data": {
+        "file": "src/repositories/job-history.repository.ts",
+        "agentThought": "fix",
+        "description": "Removed default 30-day cutoff and raised default limit to 1000 in JobHistoryRepository.getRecentJobs so older persistent jobs (like evergreen Remotar listings) remain in the deduplication set.",
+        "timestamp": "2026-11-20T01:30:12.488Z"
+      }
     }
   ],
   "edges": [
@@ -550,6 +583,21 @@
     {
       "from": "6e0f934c-ff9f-469d-afd3-cac3a92f1fa1",
       "to": "src/services/classifier/classifier-clients.ts",
+      "type": "MODIFIES"
+    },
+    {
+      "from": "90c305c6-4bb7-486e-aa88-65ee12f1d8f2",
+      "to": "src/utils/deduplication.ts",
+      "type": "MODIFIES"
+    },
+    {
+      "from": "420fd5e1-02f7-4c07-b83d-27d4905b4e8f",
+      "to": "src/utils/deduplication.ts",
+      "type": "MODIFIES"
+    },
+    {
+      "from": "8bb404fb-6424-4963-ada2-25b5162d1a1a",
+      "to": "src/repositories/job-history.repository.ts",
       "type": "MODIFIES"
     }
   ]

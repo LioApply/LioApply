@@ -88,9 +88,9 @@ src/
 
 These core constraints govern the application's behavior and must **never** be violated:
 
-1. **Persistent Deduplication by Title & Company:** 
-   - Deduplication occurs by comparing the normalized **job title** and **company name**, never relying purely on the posting URL (which can vary between reposts and tracking links).
-   - Before evaluating heuristics with Jev, the batch is deduplicated against recent history stored in PostgreSQL (`sent_jobs`) as well as within the current execution batch.
+1. **Persistent Deduplication by Title, Company & Canonical URL:** 
+   - Deduplication occurs by comparing the normalized **job title** and **company name** as well as the **canonical posting URL** (stripped of query/tracking parameters).
+   - Before evaluating heuristics with Jev, the batch is deduplicated against history stored in PostgreSQL (`sent_jobs`) as well as within the current execution batch.
 2. **Anti-Spam / Batch Notification (Digest):**
    - Individual WhatsApp message alerts are strictly prohibited to prevent WhatsApp number bans.
    - All qualified jobs within a single cron run must be consolidated into a single digest message.
@@ -160,6 +160,6 @@ When running in listener mode (`node dist/main.js --listen`), NestJS exposes the
 
 ### Programmatic SDK & NestJS DI (`@lioapply/*`)
 - `@lioapply/core`: `createLioApply(options)` (`scrapeJobs`, `classifyJobs`, `searchAndClassify`, `buildSystemOneClassificationState`, `optimizeCv`) and `LioApplyCoreModule.register(options)` exporting `ClassifierService` and the 5 provider services.
-- `@lioapply/providers`: `linkedin()`, `glassdoor()`, `remotar()`.
+- `@lioapply/providers`: `linkedin()`, `glassdoor()`, `remotar()`, `indeed()`, `remotive()`, `githubVagas()`, `weworkremotely()`, `rssFeed()`.
 - `@lioapply/cv`: `typstCvEngine(options)` and `LioApplyCvModule.register()`.
 - `@lioapply/mcp`: `pnpm run mcp` starts the JSON-RPC 2.0 MCP server over stdio.

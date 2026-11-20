@@ -22,7 +22,7 @@ export class TaskService {
       return [];
     }
 
-    const existingJobs = await this.historyRepository.getRecentJobs(300, 30);
+    const existingJobs = await this.historyRepository.getRecentJobs(1000);
     const { approvedJobs, classifierExhaustedMessage } = await this.lio.searchAndClassify({ existingJobs });
     if (approvedJobs.length === 0) {
       if (classifierExhaustedMessage) {

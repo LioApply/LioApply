@@ -1,7 +1,7 @@
 {
   "name": "@lioapply/providers",
-  "version": "0.1.0",
-  "description": "LioApply Injectable Job Providers (LinkedIn, Glassdoor, Remotar) with subpath exports",
+  "version": "0.1.2",
+  "description": "LioApply Injectable Job Providers (LinkedIn, Glassdoor, Remotar, Indeed, Remotive, GitHub Vagas, RSS) with subpath exports",
   "main": "../../dist/packages/providers/index.js",
   "types": "../../dist/packages/providers/index.d.ts",
   "exports": {
@@ -20,6 +20,22 @@
     "./remotar": {
       "types": "../../dist/packages/providers/remotar.d.ts",
       "default": "../../dist/packages/providers/remotar.js"
+    },
+    "./indeed": {
+      "types": "../../dist/packages/providers/indeed.d.ts",
+      "default": "../../dist/packages/providers/indeed.js"
+    },
+    "./remotive": {
+      "types": "../../dist/packages/providers/remotive.d.ts",
+      "default": "../../dist/packages/providers/remotive.js"
+    },
+    "./github-vagas": {
+      "types": "../../dist/packages/providers/github-vagas.d.ts",
+      "default": "../../dist/packages/providers/github-vagas.js"
+    },
+    "./rss": {
+      "types": "../../dist/packages/providers/rss.d.ts",
+      "default": "../../dist/packages/providers/rss.js"
     }
   },
   "license": "MIT"

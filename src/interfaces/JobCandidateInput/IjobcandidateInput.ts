@@ -17,6 +17,7 @@ export interface JevFitEvaluation {
 export interface JobIdentity {
   title: string;
   company?: string;
+  url?: string;
 }
 
 export interface NormalizedCandidateJob extends JobCandidateInput {

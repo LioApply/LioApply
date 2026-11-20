@@ -64,17 +64,16 @@ export class JobHistoryRepository implements OnModuleInit, OnModuleDestroy {
     return this.db;
   }
 
-  async getRecentJobs(limit = 60, days = 30): Promise<StoredJobRecord[]> {
+  async getRecentJobs(limit = 1000, days?: number): Promise<StoredJobRecord[]> {
     const db = this.ensureDb();
     try {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - days);
-      const rows = await db
-        .select(SUMMARY_FIELDS)
-        .from(sentJobs)
-        .where(gte(sentJobs.sent_at, cutoffDate))
-        .orderBy(desc(sentJobs.sent_at))
-        .limit(limit);
+      let query = db.select(SUMMARY_FIELDS).from(sentJobs).$dynamic();
+      if (days && days > 0) {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - days);
+        query = query.where(gte(sentJobs.sent_at, cutoffDate));
+      }
+      const rows = await query.orderBy(desc(sentJobs.sent_at)).limit(limit);
       return rows.map((row) => this.toStoredRecord(row));
     } catch (error) {
       this.logger.error('Erro ao buscar histórico recente de vagas:', error);

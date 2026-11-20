@@ -4,10 +4,18 @@ import {
   linkedinProvider,
   glassdoorProvider,
   remotarProvider,
+  parseGithubIssuesPayload,
+  parseRemotiveJobsPayload,
+  parseRssFeedXml,
+  rssFeed,
 } from '@lioapply/providers';
 import { linkedin } from '@lioapply/providers/linkedin';
 import { glassdoor } from '@lioapply/providers/glassdoor';
 import { remotar } from '@lioapply/providers/remotar';
+import { indeed } from '@lioapply/providers/indeed';
+import { remotive } from '@lioapply/providers/remotive';
+import { githubVagas } from '@lioapply/providers/github-vagas';
+import { weworkremotely } from '@lioapply/providers/rss';
 import { typstCvEngine, LioApplyCvModule } from '@lioapply/cv';
 import { createLioApplyMcpServer } from '@lioapply/mcp';
 
@@ -160,6 +168,96 @@ describe('LioApply Injectable Packages (@lioapply/*)', () => {
         id: null,
         error: { code: -32600, message: 'Invalid Request' },
       });
+    });
+
+    it('resolves new pluggable providers (#30) and parses JSON/RSS feeds without Playwright', async () => {
+      const resolved = resolveProviders(['indeed', 'remotive', 'github-vagas', 'weworkremotely']);
+      expect(resolved.map((p) => p.name)).toEqual(['indeed', 'remotive', 'github-vagas', 'weworkremotely']);
+
+      expect(
+        indeed().buildSearchUrl('Node.js Developer', {
+          label: 'Remoto',
+          workplaceTypes: ['remote'],
+        }),
+      ).toContain('https://br.indeed.com/jobs?q=Node.js%20Developer&l=Remoto');
+
+      expect(remotive().buildSearchUrl('TypeScript')).toBe(
+        'https://remotive.com/api/remote-jobs?category=software-dev&search=TypeScript&limit=25',
+      );
+      expect(githubVagas().buildSearchUrl('NestJS')).toContain('https://api.github.com/search/issues?q=');
+      expect(weworkremotely().buildSearchUrl('React')).toBe(
+        'https://weworkremotely.com/remote-jobs/search.rss?term=React',
+      );
+
+      const remotivePosts = parseRemotiveJobsPayload(
+        {
+          jobs: [
+            {
+              title: 'Full Stack Engineer (Node/React)',
+              company_name: 'Acme Global',
+              url: 'https://remotive.com/remote-jobs/software-dev/full-stack-1',
+              candidate_required_location: 'LATAM',
+              description: '<p>Looking for a <b>Node.js</b> and React engineer.</p>',
+            },
+          ],
+        },
+        'Remoto',
+      );
+      expect(remotivePosts).toHaveLength(1);
+      expect(remotivePosts[0]).toMatchObject({
+        title: 'Full Stack Engineer (Node/React)',
+        company: 'Acme Global',
+        location: 'LATAM',
+        url: 'https://remotive.com/remote-jobs/software-dev/full-stack-1',
+      });
+      expect(remotivePosts[0].text).toContain('Looking for a Node.js and React engineer.');
+
+      const ghPosts = parseGithubIssuesPayload(
+        {
+          items: [
+            {
+              title: '[Remoto] Desenvolvedor Backend Node.js Pleno na TechBrasil',
+              html_url: 'https://github.com/backend-br/vagas/issues/9999',
+              labels: [{ name: 'Remoto' }, { name: 'Pleno' }],
+              body: 'Atuação 100% remota com Node.js, NestJS e PostgreSQL.',
+            },
+          ],
+        },
+        'Remoto (Brasil)',
+      );
+      expect(ghPosts).toHaveLength(1);
+      expect(ghPosts[0]).toMatchObject({
+        title: 'Desenvolvedor Backend Node.js Pleno',
+        company: 'TechBrasil',
+        url: 'https://github.com/backend-br/vagas/issues/9999',
+      });
+
+      const rssXml = `<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0"><channel>
+          <item>
+            <title>CloudCorp: Backend Node.js Developer</title>
+            <link>https://weworkremotely.com/remote-jobs/cloudcorp-backend</link>
+            <description><![CDATA[<p>Remote Node.js TypeScript position.</p>]]></description>
+          </item>
+          <item>
+            <title>OtherCo: iOS Swift Engineer</title>
+            <link>https://weworkremotely.com/remote-jobs/otherco-ios</link>
+            <description>Swift mobile role</description>
+          </item>
+        </channel></rss>`;
+      const rssPosts = parseRssFeedXml(rssXml, { query: 'Node.js', locationLabel: 'Remoto' });
+      expect(rssPosts).toHaveLength(1);
+      expect(rssPosts[0]).toMatchObject({
+        title: 'Backend Node.js Developer',
+        company: 'CloudCorp',
+        url: 'https://weworkremotely.com/remote-jobs/cloudcorp-backend',
+      });
+
+      const customRss = rssFeed({
+        name: 'custom-rss',
+        buildFeedUrl: () => 'https://example.com/feed.xml',
+      });
+      expect(typeof customRss.fetchJobs).toBe('function');
     });
   });
 });
